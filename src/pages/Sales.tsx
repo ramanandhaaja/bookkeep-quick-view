@@ -1,4 +1,5 @@
 
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,57 +20,58 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter } from "lucide-react";
-import { useState } from "react";
+import CreateSaleForm from "@/components/CreateSaleForm";
+import { getSales, deleteSale, Sale } from "@/lib/storage";
+import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
+import { useToast } from "@/hooks/use-toast";
 
-interface Sale {
-  id: string;
-  customer: string;
-  date: string;
-  amount: string;
-  status: string;
-}
-
-const initialSales: Sale[] = [
-  {
-    id: "INV-001",
-    customer: "Acme Corp",
-    date: "2025-05-01",
-    amount: "$1,200.00",
-    status: "Paid",
-  },
-  {
-    id: "INV-002",
-    customer: "Globex",
-    date: "2025-05-02",
-    amount: "$850.00",
-    status: "Pending",
-  },
-  {
-    id: "INV-003",
-    customer: "Stark Industries",
-    date: "2025-05-03",
-    amount: "$3,700.00",
-    status: "Overdue",
-  },
-  {
-    id: "INV-004",
-    customer: "Wayne Enterprises",
-    date: "2025-05-04",
-    amount: "$2,150.00",
-    status: "Paid",
-  },
-  {
-    id: "INV-005",
-    customer: "Umbrella Corp",
-    date: "2025-05-05",
-    amount: "$960.00",
-    status: "Pending",
-  },
-];
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+    .format(amount);
+};
 
 const Sales = () => {
-  const [sales] = useState<Sale[]>(initialSales);
+  const { toast } = useToast();
+  const [sales, setSales] = useState<Sale[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
+
+  const loadSales = () => {
+    const loadedSales = getSales();
+    setSales(loadedSales);
+  };
+
+  useEffect(() => {
+    loadSales();
+  }, []);
+
+  const handleDeleteSale = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this sale?")) {
+      try {
+        deleteSale(id);
+        loadSales();
+        toast({
+          title: "Success",
+          description: "Sale deleted successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete sale",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleGeneratePDF = (sale: Sale) => {
+    const doc = generateSalePDF(sale);
+    savePDF(doc, `sale_${sale.id}.pdf`);
+    toast({
+      title: "Success",
+      description: "PDF generated successfully",
+    });
+  };
 
   const filteredSales = sales.filter((sale) =>
     sale.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -100,7 +102,7 @@ const Sales = () => {
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
-          <Button>
+          <Button onClick={() => setIsCreateFormOpen(true)}>
             <Plus className="h-4 w-4 mr-2" /> Add Sale
           </Button>
         </div>
@@ -119,52 +121,63 @@ const Sales = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredSales.map((sale) => (
-              <TableRow key={sale.id}>
-                <TableCell>{sale.id}</TableCell>
-                <TableCell>{sale.customer}</TableCell>
-                <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
-                <TableCell>{sale.amount}</TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      sale.status === "Paid"
-                        ? "bg-green-100 text-green-800"
-                        : sale.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {sale.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>
-                        <FileText className="mr-2 h-4 w-4" /> View Sale
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <FileText className="mr-2 h-4 w-4" /> Generate Invoice
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600">
-                        <Trash className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {filteredSales.length > 0 ? (
+              filteredSales.map((sale) => (
+                <TableRow key={sale.id}>
+                  <TableCell>{sale.id}</TableCell>
+                  <TableCell>{sale.customer}</TableCell>
+                  <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatCurrency(sale.amount)}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        sale.status === "Paid"
+                          ? "bg-green-100 text-green-800"
+                          : sale.status === "Pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {sale.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleGeneratePDF(sale)}>
+                          <FileText className="mr-2 h-4 w-4" /> View PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteSale(sale.id)}>
+                          <Trash className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  No sales found. Create your first sale by clicking "Add Sale".
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>
+
+      <CreateSaleForm
+        open={isCreateFormOpen}
+        onClose={() => setIsCreateFormOpen(false)}
+        onSuccess={loadSales}
+      />
     </Layout>
   );
 };

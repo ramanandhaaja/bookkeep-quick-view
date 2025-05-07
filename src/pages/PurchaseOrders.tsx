@@ -1,4 +1,5 @@
 
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,63 +20,58 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Printer, Send } from "lucide-react";
-import { useState } from "react";
+import CreatePurchaseOrderForm from "@/components/CreatePurchaseOrderForm";
+import { getPurchaseOrders, deletePurchaseOrder, PurchaseOrder } from "@/lib/storage";
+import { generatePurchaseOrderPDF, savePDF } from "@/lib/pdfGenerator";
+import { useToast } from "@/hooks/use-toast";
 
-interface PurchaseOrder {
-  id: string;
-  supplier: string;
-  date: string;
-  deliveryDate: string;
-  amount: string;
-  status: string;
-}
-
-const initialPurchaseOrders: PurchaseOrder[] = [
-  {
-    id: "PO-001",
-    supplier: "Office Supplies Co",
-    date: "2025-05-01",
-    deliveryDate: "2025-05-08",
-    amount: "$450.00",
-    status: "Fulfilled",
-  },
-  {
-    id: "PO-002",
-    supplier: "Tech Hardware Inc",
-    date: "2025-05-02",
-    deliveryDate: "2025-05-15",
-    amount: "$1,275.00",
-    status: "Pending",
-  },
-  {
-    id: "PO-003",
-    supplier: "Business Services Ltd",
-    date: "2025-05-03",
-    deliveryDate: "2025-05-10",
-    amount: "$780.00",
-    status: "Cancelled",
-  },
-  {
-    id: "PO-004",
-    supplier: "Furniture Outlet",
-    date: "2025-05-04",
-    deliveryDate: "2025-06-01",
-    amount: "$2,850.00",
-    status: "Fulfilled",
-  },
-  {
-    id: "PO-005",
-    supplier: "Digital Marketing Agency",
-    date: "2025-05-05",
-    deliveryDate: "2025-05-12",
-    amount: "$1,500.00",
-    status: "Pending",
-  },
-];
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+    .format(amount);
+};
 
 const PurchaseOrders = () => {
-  const [purchaseOrders] = useState<PurchaseOrder[]>(initialPurchaseOrders);
+  const { toast } = useToast();
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
+
+  const loadPurchaseOrders = () => {
+    const loadedPurchaseOrders = getPurchaseOrders();
+    setPurchaseOrders(loadedPurchaseOrders);
+  };
+
+  useEffect(() => {
+    loadPurchaseOrders();
+  }, []);
+
+  const handleDeletePurchaseOrder = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this purchase order?")) {
+      try {
+        deletePurchaseOrder(id);
+        loadPurchaseOrders();
+        toast({
+          title: "Success",
+          description: "Purchase order deleted successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete purchase order",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleGeneratePDF = (po: PurchaseOrder) => {
+    const doc = generatePurchaseOrderPDF(po);
+    savePDF(doc, `purchase_order_${po.id}.pdf`);
+    toast({
+      title: "Success",
+      description: "PDF generated successfully",
+    });
+  };
 
   const filteredPurchaseOrders = purchaseOrders.filter((po) =>
     po.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -106,7 +102,7 @@ const PurchaseOrders = () => {
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
-          <Button>
+          <Button onClick={() => setIsCreateFormOpen(true)}>
             <Plus className="h-4 w-4 mr-2" /> Create PO
           </Button>
         </div>
@@ -126,60 +122,74 @@ const PurchaseOrders = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredPurchaseOrders.map((po) => (
-              <TableRow key={po.id}>
-                <TableCell>{po.id}</TableCell>
-                <TableCell>{po.supplier}</TableCell>
-                <TableCell>{new Date(po.date).toLocaleDateString()}</TableCell>
-                <TableCell>{new Date(po.deliveryDate).toLocaleDateString()}</TableCell>
-                <TableCell>{po.amount}</TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      po.status === "Fulfilled"
-                        ? "bg-green-100 text-green-800"
-                        : po.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {po.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>
-                        <FileText className="mr-2 h-4 w-4" /> View
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Send className="mr-2 h-4 w-4" /> Email
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Printer className="mr-2 h-4 w-4" /> Print
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <FileText className="mr-2 h-4 w-4" /> Mark as Fulfilled
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600">
-                        <Trash className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {filteredPurchaseOrders.length > 0 ? (
+              filteredPurchaseOrders.map((po) => (
+                <TableRow key={po.id}>
+                  <TableCell>{po.id}</TableCell>
+                  <TableCell>{po.supplier}</TableCell>
+                  <TableCell>{new Date(po.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(po.deliveryDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatCurrency(po.amount)}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        po.status === "Fulfilled"
+                          ? "bg-green-100 text-green-800"
+                          : po.status === "Pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {po.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleGeneratePDF(po)}>
+                          <FileText className="mr-2 h-4 w-4" /> View PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Send className="mr-2 h-4 w-4" /> Email
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Printer className="mr-2 h-4 w-4" /> Print
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <FileText className="mr-2 h-4 w-4" /> Mark as Fulfilled
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeletePurchaseOrder(po.id)}>
+                          <Trash className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                  No purchase orders found. Create your first purchase order by clicking "Create PO".
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>
+
+      <CreatePurchaseOrderForm
+        open={isCreateFormOpen}
+        onClose={() => setIsCreateFormOpen(false)}
+        onSuccess={loadPurchaseOrders}
+      />
     </Layout>
   );
 };

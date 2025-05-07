@@ -1,4 +1,5 @@
 
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,57 +20,58 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter } from "lucide-react";
-import { useState } from "react";
+import CreatePurchaseForm from "@/components/CreatePurchaseForm";
+import { getPurchases, deletePurchase, Purchase } from "@/lib/storage";
+import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
+import { useToast } from "@/hooks/use-toast";
 
-interface Purchase {
-  id: string;
-  supplier: string;
-  date: string;
-  amount: string;
-  status: string;
-}
-
-const initialPurchases: Purchase[] = [
-  {
-    id: "PO-001",
-    supplier: "Office Supplies Co",
-    date: "2025-05-01",
-    amount: "$450.00",
-    status: "Received",
-  },
-  {
-    id: "PO-002",
-    supplier: "Tech Hardware Inc",
-    date: "2025-05-02",
-    amount: "$1,275.00",
-    status: "Pending",
-  },
-  {
-    id: "PO-003",
-    supplier: "Business Services Ltd",
-    date: "2025-05-03",
-    amount: "$780.00",
-    status: "Cancelled",
-  },
-  {
-    id: "PO-004",
-    supplier: "Furniture Outlet",
-    date: "2025-05-04",
-    amount: "$2,850.00",
-    status: "Received",
-  },
-  {
-    id: "PO-005",
-    supplier: "Digital Marketing Agency",
-    date: "2025-05-05",
-    amount: "$1,500.00",
-    status: "Pending",
-  },
-];
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+    .format(amount);
+};
 
 const Purchases = () => {
-  const [purchases] = useState<Purchase[]>(initialPurchases);
+  const { toast } = useToast();
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
+
+  const loadPurchases = () => {
+    const loadedPurchases = getPurchases();
+    setPurchases(loadedPurchases);
+  };
+
+  useEffect(() => {
+    loadPurchases();
+  }, []);
+
+  const handleDeletePurchase = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this purchase?")) {
+      try {
+        deletePurchase(id);
+        loadPurchases();
+        toast({
+          title: "Success",
+          description: "Purchase deleted successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete purchase",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleGeneratePDF = (purchase: Purchase) => {
+    const doc = generatePurchasePDF(purchase);
+    savePDF(doc, `purchase_${purchase.id}.pdf`);
+    toast({
+      title: "Success",
+      description: "PDF generated successfully",
+    });
+  };
 
   const filteredPurchases = purchases.filter((purchase) =>
     purchase.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -100,7 +102,7 @@ const Purchases = () => {
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
-          <Button>
+          <Button onClick={() => setIsCreateFormOpen(true)}>
             <Plus className="h-4 w-4 mr-2" /> Add Purchase
           </Button>
         </div>
@@ -119,52 +121,63 @@ const Purchases = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredPurchases.map((purchase) => (
-              <TableRow key={purchase.id}>
-                <TableCell>{purchase.id}</TableCell>
-                <TableCell>{purchase.supplier}</TableCell>
-                <TableCell>{new Date(purchase.date).toLocaleDateString()}</TableCell>
-                <TableCell>{purchase.amount}</TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      purchase.status === "Received"
-                        ? "bg-green-100 text-green-800"
-                        : purchase.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {purchase.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>
-                        <FileText className="mr-2 h-4 w-4" /> View Purchase
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <FileText className="mr-2 h-4 w-4" /> Create Purchase Order
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600">
-                        <Trash className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {filteredPurchases.length > 0 ? (
+              filteredPurchases.map((purchase) => (
+                <TableRow key={purchase.id}>
+                  <TableCell>{purchase.id}</TableCell>
+                  <TableCell>{purchase.supplier}</TableCell>
+                  <TableCell>{new Date(purchase.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatCurrency(purchase.amount)}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        purchase.status === "Received"
+                          ? "bg-green-100 text-green-800"
+                          : purchase.status === "Pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {purchase.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleGeneratePDF(purchase)}>
+                          <FileText className="mr-2 h-4 w-4" /> View PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeletePurchase(purchase.id)}>
+                          <Trash className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  No purchases found. Create your first purchase by clicking "Add Purchase".
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>
+
+      <CreatePurchaseForm
+        open={isCreateFormOpen}
+        onClose={() => setIsCreateFormOpen(false)}
+        onSuccess={loadPurchases}
+      />
     </Layout>
   );
 };
