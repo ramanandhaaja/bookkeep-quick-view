@@ -19,8 +19,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Download, FileText, Trash, Filter } from "lucide-react";
+import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Pencil } from "lucide-react";
 import CreatePurchaseForm from "@/components/CreatePurchaseForm";
+import EditPurchaseForm from "@/components/EditPurchaseForm";
 import { getPurchases, deletePurchase, Purchase } from "@/lib/storage";
 import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,8 @@ const Purchases = () => {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
 
   const loadPurchases = () => {
     const loadedPurchases = getPurchases();
@@ -62,6 +65,11 @@ const Purchases = () => {
         });
       }
     }
+  };
+
+  const handleEditPurchase = (purchase: Purchase) => {
+    setSelectedPurchase(purchase);
+    setIsEditFormOpen(true);
   };
 
   const handleGeneratePDF = (purchase: Purchase) => {
@@ -150,6 +158,9 @@ const Purchases = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleEditPurchase(purchase)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleGeneratePDF(purchase)}>
                           <FileText className="mr-2 h-4 w-4" /> View PDF
                         </DropdownMenuItem>
@@ -178,6 +189,18 @@ const Purchases = () => {
         onClose={() => setIsCreateFormOpen(false)}
         onSuccess={loadPurchases}
       />
+
+      {selectedPurchase && (
+        <EditPurchaseForm
+          open={isEditFormOpen}
+          onClose={() => {
+            setIsEditFormOpen(false);
+            setSelectedPurchase(null);
+          }}
+          onSuccess={loadPurchases}
+          purchase={selectedPurchase}
+        />
+      )}
     </Layout>
   );
 };

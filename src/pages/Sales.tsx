@@ -19,8 +19,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Download, FileText, Trash, Filter } from "lucide-react";
+import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Pencil } from "lucide-react";
 import CreateSaleForm from "@/components/CreateSaleForm";
+import EditSaleForm from "@/components/EditSaleForm";
 import { getSales, deleteSale, Sale } from "@/lib/storage";
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,8 @@ const Sales = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
   const loadSales = () => {
     const loadedSales = getSales();
@@ -62,6 +65,11 @@ const Sales = () => {
         });
       }
     }
+  };
+
+  const handleEditSale = (sale: Sale) => {
+    setSelectedSale(sale);
+    setIsEditFormOpen(true);
   };
 
   const handleGeneratePDF = (sale: Sale) => {
@@ -150,6 +158,9 @@ const Sales = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleEditSale(sale)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleGeneratePDF(sale)}>
                           <FileText className="mr-2 h-4 w-4" /> View PDF
                         </DropdownMenuItem>
@@ -178,6 +189,18 @@ const Sales = () => {
         onClose={() => setIsCreateFormOpen(false)}
         onSuccess={loadSales}
       />
+
+      {selectedSale && (
+        <EditSaleForm
+          open={isEditFormOpen}
+          onClose={() => {
+            setIsEditFormOpen(false);
+            setSelectedSale(null);
+          }}
+          onSuccess={loadSales}
+          sale={selectedSale}
+        />
+      )}
     </Layout>
   );
 };

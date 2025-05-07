@@ -81,6 +81,11 @@ export function getSales(): Sale[] {
   return getItems<Sale>(STORAGE_KEYS.SALES);
 }
 
+export function getSaleById(id: string): Sale | undefined {
+  const sales = getSales();
+  return sales.find(sale => sale.id === id);
+}
+
 export function saveSale(sale: Sale): void {
   const sales = getSales();
   sales.push(sale);
@@ -105,6 +110,11 @@ export function deleteSale(id: string): void {
 // Purchases
 export function getPurchases(): Purchase[] {
   return getItems<Purchase>(STORAGE_KEYS.PURCHASES);
+}
+
+export function getPurchaseById(id: string): Purchase | undefined {
+  const purchases = getPurchases();
+  return purchases.find(purchase => purchase.id === id);
 }
 
 export function savePurchase(purchase: Purchase): void {
