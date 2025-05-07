@@ -1,14 +1,6 @@
 
 import jsPDF from 'jspdf';
-import { Sale, Invoice, Purchase, PurchaseOrder } from './storage';
-
-// Format currency
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(amount);
-};
+import { Sale, Invoice, Purchase, PurchaseOrder, formatCurrency } from './storage';
 
 // Format date
 const formatDate = (dateString: string): string => {
@@ -35,7 +27,7 @@ const setupDocument = (title: string): jsPDF => {
   // Add company details
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text("123 Business Street, City, Country", 105, 28, { align: 'center' });
+  doc.text("123 Business Street, City, Indonesia", 105, 28, { align: 'center' });
   doc.text("Phone: (555) 123-4567 | Email: accounts@acme.com", 105, 35, { align: 'center' });
   
   // Add document title
@@ -57,7 +49,8 @@ const setupDocument = (title: string): jsPDF => {
 const addItemsTable = (
   doc: jsPDF, 
   items: { description: string; quantity: number; unitPrice: number }[],
-  startY: number
+  startY: number,
+  taxInfo?: { percentage: number; amount: number }
 ): number => {
   // Table header with improved styling
   doc.setFillColor(230, 230, 230); // Light gray background
@@ -76,13 +69,13 @@ const addItemsTable = (
   doc.setFont("helvetica", "normal");
   
   let currentY = startY + 10;
-  let total = 0;
+  let subtotal = 0;
   let rowCount = 0;
   
   // Table rows with alternating colors
   items.forEach(item => {
     const amount = item.quantity * item.unitPrice;
-    total += amount;
+    subtotal += amount;
     
     // Add alternating row colors
     if (rowCount % 2 === 1) {
@@ -106,19 +99,39 @@ const addItemsTable = (
     }
   });
   
-  // Total with better styling
+  // Subtotal with better styling
   doc.setDrawColor(41, 65, 148); // Dark blue line
   doc.setLineWidth(0.5);
   doc.line(20, currentY, 190, currentY);
   currentY += 7;
   
-  // Add total box
-  doc.setFillColor(41, 65, 148); // Dark blue
-  doc.rect(130, currentY - 5, 60, 8, 'F');
-  doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.text("Total:", 140, currentY);
-  doc.text(formatCurrency(total), 180, currentY);
+  doc.text("Subtotal:", 140, currentY);
+  doc.text(formatCurrency(subtotal), 180, currentY);
+  
+  // Add tax if applicable
+  if (taxInfo && taxInfo.percentage > 0) {
+    currentY += 7;
+    doc.text(`Tax (${taxInfo.percentage}%):`, 140, currentY);
+    doc.text(formatCurrency(taxInfo.amount), 180, currentY);
+    
+    currentY += 7;
+    const total = subtotal + taxInfo.amount;
+    
+    // Add total box
+    doc.setFillColor(41, 65, 148); // Dark blue
+    doc.rect(130, currentY - 5, 60, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text("Total:", 140, currentY);
+    doc.text(formatCurrency(total), 180, currentY);
+  } else {
+    // Add total box
+    doc.setFillColor(41, 65, 148); // Dark blue
+    doc.rect(130, currentY - 5, 60, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text("Total:", 140, currentY);
+    doc.text(formatCurrency(subtotal), 180, currentY);
+  }
   
   // Reset text color to black
   doc.setTextColor(0, 0, 0);
@@ -230,8 +243,8 @@ export const generateInvoicePDF = (invoice: Invoice): jsPDF => {
   // Reset text color
   doc.setTextColor(0, 0, 0);
   
-  // Add items table
-  const finalY = addItemsTable(doc, invoice.items, 115);
+  // Add items table with tax info if applicable
+  const finalY = addItemsTable(doc, invoice.items, 115, invoice.tax);
   
   // Payment information with improved styling
   doc.setFillColor(240, 240, 250); // Light blue background
@@ -377,8 +390,8 @@ export const generatePurchaseOrderPDF = (po: PurchaseOrder): jsPDF => {
   // Reset text color
   doc.setTextColor(0, 0, 0);
   
-  // Add items table
-  const finalY = addItemsTable(doc, po.items, 115);
+  // Add items table with tax info if applicable
+  const finalY = addItemsTable(doc, po.items, 115, po.tax);
   
   // Delivery information with improved styling
   doc.setFillColor(240, 240, 250); // Light blue background
@@ -389,7 +402,7 @@ export const generatePurchaseOrderPDF = (po: PurchaseOrder): jsPDF => {
   doc.setFont("helvetica", "normal");
   doc.text("ACME Corporation", 25, finalY + 17);
   doc.text("123 Business Street", 25, finalY + 24);
-  doc.text("City, Country, ZIP", 25, finalY + 31);
+  doc.text("City, Indonesia, ZIP", 25, finalY + 31);
   
   // Terms with improved styling
   doc.setFillColor(250, 240, 240); // Light red background

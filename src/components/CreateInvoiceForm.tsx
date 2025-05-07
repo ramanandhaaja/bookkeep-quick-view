@@ -19,12 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { X, Plus, IndianRupee } from "lucide-react";
 import { 
   Invoice, 
   SaleItem, 
   saveInvoice, 
-  generateId 
+  generateId,
+  formatCurrency 
 } from "@/lib/storage";
 import { generateInvoicePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +49,9 @@ const CreateInvoiceForm = ({ open, onClose, onSuccess }: CreateInvoiceFormProps)
   const [items, setItems] = useState<SaleItem[]>([
     { id: generateId("ITM"), description: "", quantity: 1, unitPrice: 0 },
   ]);
+  const [taxRate, setTaxRate] = useState<number>(0);
+  const [enableTax, setEnableTax] = useState<boolean>(false);
+  const [generatePDF, setGeneratePDF] = useState<boolean>(false);
 
   const handleAddItem = () => {
     setItems([
@@ -72,10 +77,20 @@ const CreateInvoiceForm = ({ open, onClose, onSuccess }: CreateInvoiceFormProps)
     setItems(newItems);
   };
 
-  const calculateTotal = (): number => {
+  const calculateSubtotal = (): number => {
     return items.reduce((total, item) => {
       return total + item.quantity * item.unitPrice;
     }, 0);
+  };
+
+  const calculateTaxAmount = (subtotal: number): number => {
+    return enableTax ? (subtotal * taxRate) / 100 : 0;
+  };
+
+  const calculateTotal = (): number => {
+    const subtotal = calculateSubtotal();
+    const taxAmount = calculateTaxAmount(subtotal);
+    return subtotal + taxAmount;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -99,6 +114,9 @@ const CreateInvoiceForm = ({ open, onClose, onSuccess }: CreateInvoiceFormProps)
       return;
     }
 
+    const subtotal = calculateSubtotal();
+    const taxAmount = calculateTaxAmount(subtotal);
+
     const newInvoice: Invoice = {
       id: generateId("INV"),
       customer,
@@ -107,20 +125,27 @@ const CreateInvoiceForm = ({ open, onClose, onSuccess }: CreateInvoiceFormProps)
       amount: calculateTotal(),
       status,
       items,
+      ...(enableTax && { tax: { percentage: taxRate, amount: taxAmount } }),
       notes: notes || undefined,
     };
 
     try {
       saveInvoice(newInvoice);
       
-      // Generate and save PDF
-      const doc = generateInvoicePDF(newInvoice);
-      savePDF(doc, `invoice_${newInvoice.id}.pdf`);
-      
-      toast({
-        title: "Success",
-        description: `Invoice ${newInvoice.id} created successfully`,
-      });
+      // Generate PDF only if the option is selected
+      if (generatePDF) {
+        const doc = generateInvoicePDF(newInvoice);
+        savePDF(doc, `invoice_${newInvoice.id}.pdf`);
+        toast({
+          title: "Success",
+          description: `Invoice ${newInvoice.id} created and PDF generated successfully`,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `Invoice ${newInvoice.id} created successfully`,
+        });
+      }
       
       onSuccess();
       onClose();
@@ -247,21 +272,25 @@ const CreateInvoiceForm = ({ open, onClose, onSuccess }: CreateInvoiceFormProps)
                     </div>
                     <div className="col-span-3">
                       <Label htmlFor={`item-${index}-price`}>Unit Price</Label>
-                      <Input
-                        id={`item-${index}-price`}
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.unitPrice}
-                        onChange={(e) =>
-                          handleItemChange(
-                            index,
-                            "unitPrice",
-                            Number(e.target.value)
-                          )
-                        }
-                        required
-                      />
+                      <div className="relative">
+                        <IndianRupee className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                        <Input
+                          id={`item-${index}-price`}
+                          type="number"
+                          min="0"
+                          step="1000"
+                          className="pl-8"
+                          value={item.unitPrice}
+                          onChange={(e) =>
+                            handleItemChange(
+                              index,
+                              "unitPrice",
+                              Number(e.target.value)
+                            )
+                          }
+                          required
+                        />
+                      </div>
                     </div>
                     <div className="col-span-2 flex items-end justify-end">
                       <Button
@@ -278,8 +307,46 @@ const CreateInvoiceForm = ({ open, onClose, onSuccess }: CreateInvoiceFormProps)
                 ))}
               </div>
 
+              <div className="pt-4 space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="enable-tax" 
+                    checked={enableTax} 
+                    onCheckedChange={(checked) => setEnableTax(checked === true)} 
+                  />
+                  <Label htmlFor="enable-tax">Enable Tax</Label>
+                </div>
+                
+                {enableTax && (
+                  <div className="flex items-center space-x-4">
+                    <div className="w-1/4">
+                      <Label htmlFor="tax-rate">Tax Rate (%)</Label>
+                      <Input
+                        id="tax-rate"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={taxRate}
+                        onChange={(e) => setTaxRate(Number(e.target.value))}
+                        required={enableTax}
+                      />
+                    </div>
+                    <div className="text-sm text-gray-500 pt-6">
+                      Tax Amount: {formatCurrency(calculateTaxAmount(calculateSubtotal()))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end text-lg font-medium">
-                Total: ${calculateTotal().toFixed(2)}
+                <div className="space-y-1 text-right">
+                  <div className="text-sm text-muted-foreground">Subtotal: {formatCurrency(calculateSubtotal())}</div>
+                  {enableTax && (
+                    <div className="text-sm text-muted-foreground">Tax: {formatCurrency(calculateTaxAmount(calculateSubtotal()))}</div>
+                  )}
+                  <div>Total: {formatCurrency(calculateTotal())}</div>
+                </div>
               </div>
             </div>
 
@@ -292,6 +359,15 @@ const CreateInvoiceForm = ({ open, onClose, onSuccess }: CreateInvoiceFormProps)
                 placeholder="Enter additional notes"
                 rows={3}
               />
+            </div>
+            
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox 
+                id="generate-pdf" 
+                checked={generatePDF} 
+                onCheckedChange={(checked) => setGeneratePDF(checked === true)} 
+              />
+              <Label htmlFor="generate-pdf">Generate PDF after saving</Label>
             </div>
           </div>
 

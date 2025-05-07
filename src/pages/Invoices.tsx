@@ -21,14 +21,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Printer, Send } from "lucide-react";
 import CreateInvoiceForm from "@/components/CreateInvoiceForm";
-import { getInvoices, deleteInvoice, Invoice } from "@/lib/storage";
+import { getInvoices, deleteInvoice, Invoice, formatCurrency } from "@/lib/storage";
 import { generateInvoicePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
-
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-    .format(amount);
-};
 
 const Invoices = () => {
   const { toast } = useToast();
@@ -153,7 +148,7 @@ const Invoices = () => {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleGeneratePDF(invoice)}>
-                          <FileText className="mr-2 h-4 w-4" /> View PDF
+                          <FileText className="mr-2 h-4 w-4" /> Generate PDF
                         </DropdownMenuItem>
                         <DropdownMenuItem>
                           <Send className="mr-2 h-4 w-4" /> Email

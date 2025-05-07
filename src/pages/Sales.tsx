@@ -22,14 +22,9 @@ import {
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Pencil } from "lucide-react";
 import CreateSaleForm from "@/components/CreateSaleForm";
 import EditSaleForm from "@/components/EditSaleForm";
-import { getSales, deleteSale, Sale } from "@/lib/storage";
+import { getSales, deleteSale, Sale, formatCurrency } from "@/lib/storage";
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
-
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-    .format(amount);
-};
 
 const Sales = () => {
   const { toast } = useToast();

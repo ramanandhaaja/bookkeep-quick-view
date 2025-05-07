@@ -43,6 +43,10 @@ export interface Invoice {
   amount: number;
   status: "Paid" | "Pending" | "Overdue";
   items: SaleItem[];
+  tax?: {
+    percentage: number;
+    amount: number;
+  };
   notes?: string;
 }
 
@@ -54,7 +58,21 @@ export interface PurchaseOrder {
   amount: number;
   status: "Fulfilled" | "Pending" | "Cancelled";
   items: PurchaseItem[];
+  tax?: {
+    percentage: number;
+    amount: number;
+  };
   notes?: string;
+}
+
+// Format currency as Indonesian Rupiah
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount);
 }
 
 // Storage keys

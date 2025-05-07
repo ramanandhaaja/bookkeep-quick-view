@@ -21,14 +21,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Printer, Send } from "lucide-react";
 import CreatePurchaseOrderForm from "@/components/CreatePurchaseOrderForm";
-import { getPurchaseOrders, deletePurchaseOrder, PurchaseOrder } from "@/lib/storage";
+import { getPurchaseOrders, deletePurchaseOrder, PurchaseOrder, formatCurrency } from "@/lib/storage";
 import { generatePurchaseOrderPDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
-
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-    .format(amount);
-};
 
 const PurchaseOrders = () => {
   const { toast } = useToast();
@@ -153,7 +148,7 @@ const PurchaseOrders = () => {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleGeneratePDF(po)}>
-                          <FileText className="mr-2 h-4 w-4" /> View PDF
+                          <FileText className="mr-2 h-4 w-4" /> Generate PDF
                         </DropdownMenuItem>
                         <DropdownMenuItem>
                           <Send className="mr-2 h-4 w-4" /> Email
