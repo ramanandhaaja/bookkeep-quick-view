@@ -19,12 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Plus } from "lucide-react";
+import { X, Plus, FileText } from "lucide-react";
 import { 
   Sale, 
   SaleItem, 
   updateSale, 
-  generateId 
+  generateId,
+  formatCurrency
 } from "@/lib/storage";
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +43,7 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
   const [date, setDate] = useState(sale.date);
   const [status, setStatus] = useState<Sale["status"]>(sale.status);
   const [notes, setNotes] = useState(sale.notes || "");
+  const [taxPercentage, setTaxPercentage] = useState<number>(sale.tax?.percentage || 0);
   const [items, setItems] = useState<SaleItem[]>(sale.items);
 
   useEffect(() => {
@@ -50,6 +52,7 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
       setDate(sale.date);
       setStatus(sale.status);
       setNotes(sale.notes || "");
+      setTaxPercentage(sale.tax?.percentage || 0);
       setItems([...sale.items]);
     }
   }, [sale]);
@@ -78,10 +81,18 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
     setItems(newItems);
   };
 
-  const calculateTotal = (): number => {
+  const calculateSubtotal = (): number => {
     return items.reduce((total, item) => {
       return total + item.quantity * item.unitPrice;
     }, 0);
+  };
+
+  const calculateTaxAmount = (): number => {
+    return (calculateSubtotal() * taxPercentage) / 100;
+  };
+
+  const calculateTotal = (): number => {
+    return calculateSubtotal() + calculateTaxAmount();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -113,14 +124,14 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
       status,
       items,
       notes: notes || undefined,
+      tax: taxPercentage > 0 ? {
+        percentage: taxPercentage,
+        amount: calculateTaxAmount()
+      } : undefined,
     };
 
     try {
       updateSale(updatedSale);
-      
-      // Generate and save PDF
-      const doc = generateSalePDF(updatedSale);
-      savePDF(doc, `sale_${updatedSale.id}.pdf`);
       
       toast({
         title: "Success",
@@ -137,6 +148,30 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
       });
       console.error("Error updating sale:", error);
     }
+  };
+
+  const handleGeneratePDF = () => {
+    const updatedSale: Sale = {
+      id: sale.id,
+      customer,
+      date,
+      amount: calculateTotal(),
+      status,
+      items,
+      notes: notes || undefined,
+      tax: taxPercentage > 0 ? {
+        percentage: taxPercentage,
+        amount: calculateTaxAmount()
+      } : undefined,
+    };
+    
+    const doc = generateSalePDF(updatedSale);
+    savePDF(doc, `sale_${updatedSale.id}.pdf`);
+    
+    toast({
+      title: "Success",
+      description: "PDF generated successfully",
+    });
   };
 
   return (
@@ -272,8 +307,37 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
                 ))}
               </div>
 
-              <div className="flex justify-end text-lg font-medium">
-                Total: ${calculateTotal().toFixed(2)}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="taxPercentage">Tax Percentage (%)</Label>
+                  <Input
+                    id="taxPercentage"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={taxPercentage}
+                    onChange={(e) => setTaxPercentage(Number(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="flex flex-col justify-end space-y-1">
+                  {taxPercentage > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span>{formatCurrency(calculateSubtotal())}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Tax ({taxPercentage}%):</span>
+                        <span>{formatCurrency(calculateTaxAmount())}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between text-lg font-medium">
+                    <span>Total:</span>
+                    <span>{formatCurrency(calculateTotal())}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -292,6 +356,14 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleGeneratePDF}
+              className="mr-2"
+            >
+              <FileText className="h-4 w-4 mr-2" /> Create Invoice (PDF)
             </Button>
             <Button type="submit">Update Sale</Button>
           </DialogFooter>

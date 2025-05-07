@@ -157,7 +157,7 @@ const Sales = () => {
                           <Pencil className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleGeneratePDF(sale)}>
-                          <FileText className="mr-2 h-4 w-4" /> View PDF
+                          <FileText className="mr-2 h-4 w-4" /> Generate PDF
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteSale(sale.id)}>

@@ -19,12 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Plus } from "lucide-react";
+import { X, Plus, FileText } from "lucide-react";
 import { 
   Sale, 
   SaleItem, 
   saveSale, 
-  generateId 
+  generateId,
+  formatCurrency
 } from "@/lib/storage";
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +42,7 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [status, setStatus] = useState<Sale["status"]>("Pending");
   const [notes, setNotes] = useState("");
+  const [taxPercentage, setTaxPercentage] = useState<number>(0);
   const [items, setItems] = useState<SaleItem[]>([
     { id: generateId("ITM"), description: "", quantity: 1, unitPrice: 0 },
   ]);
@@ -69,10 +71,18 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
     setItems(newItems);
   };
 
-  const calculateTotal = (): number => {
+  const calculateSubtotal = (): number => {
     return items.reduce((total, item) => {
       return total + item.quantity * item.unitPrice;
     }, 0);
+  };
+
+  const calculateTaxAmount = (): number => {
+    return (calculateSubtotal() * taxPercentage) / 100;
+  };
+
+  const calculateTotal = (): number => {
+    return calculateSubtotal() + calculateTaxAmount();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -104,14 +114,14 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
       status,
       items,
       notes: notes || undefined,
+      tax: taxPercentage > 0 ? {
+        percentage: taxPercentage,
+        amount: calculateTaxAmount()
+      } : undefined,
     };
 
     try {
       saveSale(newSale);
-      
-      // Generate and save PDF
-      const doc = generateSalePDF(newSale);
-      savePDF(doc, `sale_${newSale.id}.pdf`);
       
       toast({
         title: "Success",
@@ -128,6 +138,30 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
       });
       console.error("Error saving sale:", error);
     }
+  };
+
+  const handleGeneratePDF = () => {
+    const newSale: Sale = {
+      id: generateId("INV"),
+      customer,
+      date,
+      amount: calculateTotal(),
+      status,
+      items,
+      notes: notes || undefined,
+      tax: taxPercentage > 0 ? {
+        percentage: taxPercentage,
+        amount: calculateTaxAmount()
+      } : undefined,
+    };
+    
+    const doc = generateSalePDF(newSale);
+    savePDF(doc, `sale_${newSale.id}.pdf`);
+    
+    toast({
+      title: "Success",
+      description: "PDF generated successfully",
+    });
   };
 
   return (
@@ -263,8 +297,37 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
                 ))}
               </div>
 
-              <div className="flex justify-end text-lg font-medium">
-                Total: ${calculateTotal().toFixed(2)}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="taxPercentage">Tax Percentage (%)</Label>
+                  <Input
+                    id="taxPercentage"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={taxPercentage}
+                    onChange={(e) => setTaxPercentage(Number(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="flex flex-col justify-end space-y-1">
+                  {taxPercentage > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span>{formatCurrency(calculateSubtotal())}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Tax ({taxPercentage}%):</span>
+                        <span>{formatCurrency(calculateTaxAmount())}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between text-lg font-medium">
+                    <span>Total:</span>
+                    <span>{formatCurrency(calculateTotal())}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -283,6 +346,14 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleGeneratePDF}
+              className="mr-2"
+            >
+              <FileText className="h-4 w-4 mr-2" /> Create Invoice (PDF)
             </Button>
             <Button type="submit">Create Sale</Button>
           </DialogFooter>
