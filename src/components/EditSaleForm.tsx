@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +39,7 @@ interface EditSaleFormProps {
 const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => {
   const { toast } = useToast();
   const [customer, setCustomer] = useState(sale.customer);
+  const [category, setCategory] = useState(sale.category || "");
   const [date, setDate] = useState(sale.date);
   const [status, setStatus] = useState<Sale["status"]>(sale.status);
   const [notes, setNotes] = useState(sale.notes || "");
@@ -49,6 +49,7 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
   useEffect(() => {
     if (sale) {
       setCustomer(sale.customer);
+      setCategory(sale.category || "");
       setDate(sale.date);
       setStatus(sale.status);
       setNotes(sale.notes || "");
@@ -128,6 +129,7 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
         percentage: taxPercentage,
         amount: calculateTaxAmount()
       } : undefined,
+      category: category || undefined,
     };
 
     try {
@@ -163,6 +165,7 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
         percentage: taxPercentage,
         amount: calculateTaxAmount()
       } : undefined,
+      category: category || undefined,
     };
     
     const doc = generateSalePDF(updatedSale);
@@ -186,7 +189,7 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="customer">Customer Name</Label>
                 <Input
@@ -195,6 +198,16 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
                   onChange={(e) => setCustomer(e.target.value)}
                   placeholder="Enter customer name"
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Enter category (optional)"
                 />
               </div>
 

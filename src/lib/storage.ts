@@ -1,3 +1,4 @@
+
 // Local storage utility functions
 
 export interface Sale {
@@ -12,6 +13,7 @@ export interface Sale {
     percentage: number;
     amount: number;
   };
+  category?: string;
 }
 
 export interface SaleItem {
@@ -29,6 +31,7 @@ export interface Purchase {
   status: "Received" | "Pending" | "Cancelled";
   items: PurchaseItem[];
   notes?: string;
+  category?: string;
 }
 
 export interface PurchaseItem {

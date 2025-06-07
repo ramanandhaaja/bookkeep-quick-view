@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +38,7 @@ interface EditPurchaseFormProps {
 const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFormProps) => {
   const { toast } = useToast();
   const [supplier, setSupplier] = useState(purchase.supplier);
+  const [category, setCategory] = useState(purchase.category || "");
   const [date, setDate] = useState(purchase.date);
   const [status, setStatus] = useState<Purchase["status"]>(purchase.status);
   const [notes, setNotes] = useState(purchase.notes || "");
@@ -47,6 +47,7 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
   useEffect(() => {
     if (purchase) {
       setSupplier(purchase.supplier);
+      setCategory(purchase.category || "");
       setDate(purchase.date);
       setStatus(purchase.status);
       setNotes(purchase.notes || "");
@@ -113,6 +114,7 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
       status,
       items,
       notes: notes || undefined,
+      category: category || undefined,
     };
 
     try {
@@ -151,7 +153,7 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="supplier">Supplier Name</Label>
                 <Input
@@ -160,6 +162,16 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
                   onChange={(e) => setSupplier(e.target.value)}
                   placeholder="Enter supplier name"
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Enter category (optional)"
                 />
               </div>
 

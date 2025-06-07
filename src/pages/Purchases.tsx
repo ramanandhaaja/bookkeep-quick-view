@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Pencil } from "lucide-react";
 import CreatePurchaseForm from "@/components/CreatePurchaseForm";
 import EditPurchaseForm from "@/components/EditPurchaseForm";
@@ -29,6 +37,7 @@ const Purchases = () => {
   const { toast } = useToast();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
@@ -75,10 +84,20 @@ const Purchases = () => {
     });
   };
 
-  const filteredPurchases = purchases.filter((purchase) =>
-    purchase.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    purchase.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getUniqueCategories = () => {
+    const categories = purchases
+      .map(purchase => purchase.category)
+      .filter((category): category is string => Boolean(category))
+      .filter((category, index, array) => array.indexOf(category) === index);
+    return categories;
+  };
+
+  const filteredPurchases = purchases.filter((purchase) => {
+    const matchesSearch = purchase.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      purchase.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !selectedCategory || purchase.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <Layout
@@ -95,6 +114,19 @@ const Purchases = () => {
               className="w-[300px]"
             />
           </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Categories</SelectItem>
+              {getUniqueCategories().map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="sm">
             <Filter className="h-4 w-4 mr-2" /> Filter
           </Button>
@@ -116,6 +148,7 @@ const Purchases = () => {
             <TableRow>
               <TableHead>Order #</TableHead>
               <TableHead>Supplier</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
@@ -128,6 +161,7 @@ const Purchases = () => {
                 <TableRow key={purchase.id}>
                   <TableCell>{purchase.id}</TableCell>
                   <TableCell>{purchase.supplier}</TableCell>
+                  <TableCell>{purchase.category || "—"}</TableCell>
                   <TableCell>{new Date(purchase.date).toLocaleDateString()}</TableCell>
                   <TableCell>{formatCurrency(purchase.amount)}</TableCell>
                   <TableCell>
@@ -169,7 +203,7 @@ const Purchases = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                   No purchases found. Create your first purchase by clicking "Add Purchase".
                 </TableCell>
               </TableRow>

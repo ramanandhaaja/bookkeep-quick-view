@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +37,7 @@ interface CreatePurchaseFormProps {
 const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProps) => {
   const { toast } = useToast();
   const [supplier, setSupplier] = useState("");
+  const [category, setCategory] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [status, setStatus] = useState<Purchase["status"]>("Pending");
   const [notes, setNotes] = useState("");
@@ -104,6 +104,7 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
       status,
       items,
       notes: notes || undefined,
+      category: category || undefined,
     };
 
     try {
@@ -142,7 +143,7 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="supplier">Supplier Name</Label>
                 <Input
@@ -151,6 +152,16 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
                   onChange={(e) => setSupplier(e.target.value)}
                   placeholder="Enter supplier name"
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Enter category (optional)"
                 />
               </div>
 

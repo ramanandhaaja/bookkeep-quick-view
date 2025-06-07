@@ -19,6 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Pencil } from "lucide-react";
 import CreateSaleForm from "@/components/CreateSaleForm";
 import EditSaleForm from "@/components/EditSaleForm";
@@ -30,6 +37,7 @@ const Sales = () => {
   const { toast } = useToast();
   const [sales, setSales] = useState<Sale[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -76,10 +84,20 @@ const Sales = () => {
     });
   };
 
-  const filteredSales = sales.filter((sale) =>
-    sale.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sale.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getUniqueCategories = () => {
+    const categories = sales
+      .map(sale => sale.category)
+      .filter((category): category is string => Boolean(category))
+      .filter((category, index, array) => array.indexOf(category) === index);
+    return categories;
+  };
+
+  const filteredSales = sales.filter((sale) => {
+    const matchesSearch = sale.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sale.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !selectedCategory || sale.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <Layout
@@ -96,6 +114,19 @@ const Sales = () => {
               className="w-[300px]"
             />
           </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Categories</SelectItem>
+              {getUniqueCategories().map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="sm">
             <Filter className="h-4 w-4 mr-2" /> Filter
           </Button>
@@ -117,6 +148,7 @@ const Sales = () => {
             <TableRow>
               <TableHead>Invoice #</TableHead>
               <TableHead>Customer</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
@@ -129,6 +161,7 @@ const Sales = () => {
                 <TableRow key={sale.id}>
                   <TableCell>{sale.id}</TableCell>
                   <TableCell>{sale.customer}</TableCell>
+                  <TableCell>{sale.category || "—"}</TableCell>
                   <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
                   <TableCell>{formatCurrency(sale.amount)}</TableCell>
                   <TableCell>
@@ -170,7 +203,7 @@ const Sales = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                   No sales found. Create your first sale by clicking "Add Sale".
                 </TableCell>
               </TableRow>

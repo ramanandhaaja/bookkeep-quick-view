@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +38,7 @@ interface CreateSaleFormProps {
 const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
   const { toast } = useToast();
   const [customer, setCustomer] = useState("");
+  const [category, setCategory] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [status, setStatus] = useState<Sale["status"]>("Pending");
   const [notes, setNotes] = useState("");
@@ -118,6 +118,7 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
         percentage: taxPercentage,
         amount: calculateTaxAmount()
       } : undefined,
+      category: category || undefined,
     };
 
     try {
@@ -153,6 +154,7 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
         percentage: taxPercentage,
         amount: calculateTaxAmount()
       } : undefined,
+      category: category || undefined,
     };
     
     const doc = generateSalePDF(newSale);
@@ -176,7 +178,7 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="customer">Customer Name</Label>
                 <Input
@@ -185,6 +187,16 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
                   onChange={(e) => setCustomer(e.target.value)}
                   placeholder="Enter customer name"
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Enter category (optional)"
                 />
               </div>
 
