@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,7 @@ const Purchases = () => {
   const { toast } = useToast();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
@@ -95,7 +94,7 @@ const Purchases = () => {
   const filteredPurchases = purchases.filter((purchase) => {
     const matchesSearch = purchase.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
       purchase.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || purchase.category === selectedCategory;
+    const matchesCategory = selectedCategory === "all" || purchase.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -119,7 +118,7 @@ const Purchases = () => {
               <SelectValue placeholder="Filter by category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Categories</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
               {getUniqueCategories().map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}
