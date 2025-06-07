@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -22,14 +21,9 @@ import {
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Pencil } from "lucide-react";
 import CreatePurchaseForm from "@/components/CreatePurchaseForm";
 import EditPurchaseForm from "@/components/EditPurchaseForm";
-import { getPurchases, deletePurchase, Purchase } from "@/lib/storage";
+import { getPurchases, deletePurchase, Purchase, formatCurrency } from "@/lib/storage";
 import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
-
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-    .format(amount);
-};
 
 const Purchases = () => {
   const { toast } = useToast();

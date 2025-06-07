@@ -1,5 +1,5 @@
 
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, 
   ArrowUpRight, 
@@ -7,7 +7,8 @@ import {
   FileText, 
   ClipboardList, 
   Users, 
-  Settings 
+  Settings,
+  BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,8 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ className }: SidebarProps) => {
+  const location = useLocation();
+
   return (
     <div className={cn("h-screen w-64 bg-sidebar p-4 flex flex-col border-r", className)}>
       <div className="mb-8">
@@ -24,16 +27,17 @@ const Sidebar = ({ className }: SidebarProps) => {
       </div>
       
       <nav className="space-y-1 flex-1">
-        <SidebarItem to="/" icon={<LayoutDashboard size={20} />} text="Dashboard" active />
-        <SidebarItem to="/sales" icon={<ArrowUpRight size={20} />} text="Sales" />
-        <SidebarItem to="/purchases" icon={<ArrowDownRight size={20} />} text="Purchases" />
-        <SidebarItem to="/invoices" icon={<FileText size={20} />} text="Invoices" />
-        <SidebarItem to="/purchase-orders" icon={<ClipboardList size={20} />} text="Purchase Orders" />
-        <SidebarItem to="/contacts" icon={<Users size={20} />} text="Contacts" />
+        <SidebarItem to="/" icon={<LayoutDashboard size={20} />} text="Dashboard" active={location.pathname === "/"} />
+        <SidebarItem to="/sales" icon={<ArrowUpRight size={20} />} text="Sales" active={location.pathname === "/sales"} />
+        <SidebarItem to="/purchases" icon={<ArrowDownRight size={20} />} text="Purchases" active={location.pathname === "/purchases"} />
+        <SidebarItem to="/invoices" icon={<FileText size={20} />} text="Invoices" active={location.pathname === "/invoices"} />
+        <SidebarItem to="/purchase-orders" icon={<ClipboardList size={20} />} text="Purchase Orders" active={location.pathname === "/purchase-orders"} />
+        <SidebarItem to="/contacts" icon={<Users size={20} />} text="Contacts" active={location.pathname === "/contacts"} />
+        <SidebarItem to="/reporting" icon={<BarChart3 size={20} />} text="Reporting" active={location.pathname === "/reporting"} />
       </nav>
       
       <div className="mt-auto">
-        <SidebarItem to="/settings" icon={<Settings size={20} />} text="Settings" />
+        <SidebarItem to="/settings" icon={<Settings size={20} />} text="Settings" active={location.pathname === "/settings"} />
       </div>
     </div>
   );

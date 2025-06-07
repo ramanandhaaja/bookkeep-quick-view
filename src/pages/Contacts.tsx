@@ -1,4 +1,3 @@
-
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +20,7 @@ import {
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Mail, Phone } from "lucide-react";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatCurrency } from "@/lib/storage";
 
 interface Contact {
   id: string;
@@ -28,7 +28,7 @@ interface Contact {
   email: string;
   phone: string;
   type: string;
-  balance: string;
+  balance: number;
 }
 
 const initialContacts: Contact[] = [
@@ -38,7 +38,7 @@ const initialContacts: Contact[] = [
     email: "contact@acme.com",
     phone: "(555) 123-4567",
     type: "Customer",
-    balance: "$1,200.00",
+    balance: 1200000,
   },
   {
     id: "C-002",
@@ -46,7 +46,7 @@ const initialContacts: Contact[] = [
     email: "info@globex.com",
     phone: "(555) 234-5678",
     type: "Customer",
-    balance: "$850.00",
+    balance: 850000,
   },
   {
     id: "C-003",
@@ -54,7 +54,7 @@ const initialContacts: Contact[] = [
     email: "orders@officesupplies.com",
     phone: "(555) 345-6789",
     type: "Supplier",
-    balance: "$450.00",
+    balance: 450000,
   },
   {
     id: "C-004",
@@ -62,7 +62,7 @@ const initialContacts: Contact[] = [
     email: "info@stark.com",
     phone: "(555) 456-7890",
     type: "Customer",
-    balance: "$3,700.00",
+    balance: 3700000,
   },
   {
     id: "C-005",
@@ -70,7 +70,7 @@ const initialContacts: Contact[] = [
     email: "sales@techhardware.com",
     phone: "(555) 567-8901",
     type: "Supplier",
-    balance: "$1,275.00",
+    balance: 1275000,
   },
 ];
 
@@ -190,7 +190,7 @@ const ContactList = ({ contacts, searchTerm, setSearchTerm }: ContactListProps) 
                     {contact.type}
                   </span>
                 </TableCell>
-                <TableCell>{contact.balance}</TableCell>
+                <TableCell>{formatCurrency(contact.balance)}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
