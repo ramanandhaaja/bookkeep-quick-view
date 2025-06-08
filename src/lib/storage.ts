@@ -72,6 +72,26 @@ export interface PurchaseOrder {
   category?: string;
 }
 
+export interface JournalEntry {
+  id: string;
+  date: string;
+  description: string;
+  reference?: string;
+  lineItems: JournalLineItem[];
+  totalDebit: number;
+  totalCredit: number;
+  notes?: string;
+  category?: string;
+}
+
+export interface JournalLineItem {
+  id: string;
+  account: string;
+  description: string;
+  debit: number;
+  credit: number;
+}
+
 // Format currency as Indonesian Rupiah
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('id-ID', {
@@ -88,6 +108,7 @@ const STORAGE_KEYS = {
   PURCHASES: 'accounting_purchases',
   INVOICES: 'accounting_invoices',
   PURCHASE_ORDERS: 'accounting_purchase_orders',
+  JOURNAL_ENTRIES: 'accounting_journal_entries',
   CATEGORIES: 'accounting_categories',
 };
 
@@ -290,6 +311,47 @@ export function deletePurchaseOrder(id: string): void {
   const purchaseOrders = getPurchaseOrders();
   const filteredPurchaseOrders = purchaseOrders.filter(po => po.id !== id);
   saveItems(STORAGE_KEYS.PURCHASE_ORDERS, filteredPurchaseOrders);
+}
+
+// Journal Entries
+export function getJournalEntries(): JournalEntry[] {
+  return getItems<JournalEntry>(STORAGE_KEYS.JOURNAL_ENTRIES);
+}
+
+export function getJournalEntryById(id: string): JournalEntry | undefined {
+  const journalEntries = getJournalEntries();
+  return journalEntries.find(entry => entry.id === id);
+}
+
+export function saveJournalEntry(journalEntry: JournalEntry): void {
+  const journalEntries = getJournalEntries();
+  journalEntries.push(journalEntry);
+  saveItems(STORAGE_KEYS.JOURNAL_ENTRIES, journalEntries);
+  
+  // Save category if it exists
+  if (journalEntry.category) {
+    saveCategory(journalEntry.category);
+  }
+}
+
+export function updateJournalEntry(updatedJournalEntry: JournalEntry): void {
+  const journalEntries = getJournalEntries();
+  const index = journalEntries.findIndex(entry => entry.id === updatedJournalEntry.id);
+  if (index !== -1) {
+    journalEntries[index] = updatedJournalEntry;
+    saveItems(STORAGE_KEYS.JOURNAL_ENTRIES, journalEntries);
+    
+    // Save category if it exists
+    if (updatedJournalEntry.category) {
+      saveCategory(updatedJournalEntry.category);
+    }
+  }
+}
+
+export function deleteJournalEntry(id: string): void {
+  const journalEntries = getJournalEntries();
+  const filteredJournalEntries = journalEntries.filter(entry => entry.id !== id);
+  saveItems(STORAGE_KEYS.JOURNAL_ENTRIES, filteredJournalEntries);
 }
 
 // Helper to generate new IDs

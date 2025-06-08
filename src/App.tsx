@@ -9,6 +9,7 @@ import Sales from "./pages/Sales";
 import Purchases from "./pages/Purchases";
 import Invoices from "./pages/Invoices";
 import PurchaseOrders from "./pages/PurchaseOrders";
+import JournalEntries from "./pages/JournalEntries";
 import Contacts from "./pages/Contacts";
 import Settings from "./pages/Settings";
 import Reporting from "./pages/Reporting";
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/purchases" element={<Purchases />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/purchase-orders" element={<PurchaseOrders />} />
+          <Route path="/journal-entries" element={<JournalEntries />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/reporting" element={<Reporting />} />
           <Route path="/settings" element={<Settings />} />

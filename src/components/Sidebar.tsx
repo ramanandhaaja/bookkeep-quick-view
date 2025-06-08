@@ -8,7 +8,8 @@ import {
   ClipboardList, 
   Users, 
   Settings,
-  BarChart3
+  BarChart3,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ const Sidebar = ({ className }: SidebarProps) => {
         <SidebarItem to="/purchases" icon={<ArrowDownRight size={20} />} text="Purchases" active={location.pathname === "/purchases"} />
         <SidebarItem to="/invoices" icon={<FileText size={20} />} text="Invoices" active={location.pathname === "/invoices"} />
         <SidebarItem to="/purchase-orders" icon={<ClipboardList size={20} />} text="Purchase Orders" active={location.pathname === "/purchase-orders"} />
+        <SidebarItem to="/journal-entries" icon={<BookOpen size={20} />} text="Journal Entries" active={location.pathname === "/journal-entries"} />
         <SidebarItem to="/contacts" icon={<Users size={20} />} text="Contacts" active={location.pathname === "/contacts"} />
         <SidebarItem to="/reporting" icon={<BarChart3 size={20} />} text="Reporting" active={location.pathname === "/reporting"} />
       </nav>
