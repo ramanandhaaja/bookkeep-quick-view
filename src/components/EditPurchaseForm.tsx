@@ -23,10 +23,12 @@ import {
   Purchase, 
   PurchaseItem, 
   updatePurchase, 
-  generateId 
+  generateId,
+  getAllCategoriesFromTransactions
 } from "@/lib/storage";
 import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
+import CategorySelect from "./CategorySelect";
 
 interface EditPurchaseFormProps {
   open: boolean;
@@ -167,11 +169,11 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
 
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Input
-                  id="category"
+                <CategorySelect
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="Enter category (optional)"
+                  onValueChange={setCategory}
+                  categories={getAllCategoriesFromTransactions()}
+                  placeholder="Select or create category"
                 />
               </div>
 
