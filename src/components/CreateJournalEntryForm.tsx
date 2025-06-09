@@ -198,7 +198,7 @@ const CreateJournalEntryForm = ({ open, onOpenChange, onSuccess }: CreateJournal
                   <div className="col-span-2">
                     <Input
                       type="number"
-                      value={item.debit || ""}
+                      value={item.debit === 0 ? "" : item.debit.toString()}
                       onChange={(e) => updateLineItem(item.id, "debit", parseFloat(e.target.value) || 0)}
                       placeholder="0"
                       size="sm"
@@ -207,7 +207,7 @@ const CreateJournalEntryForm = ({ open, onOpenChange, onSuccess }: CreateJournal
                   <div className="col-span-2">
                     <Input
                       type="number"
-                      value={item.credit || ""}
+                      value={item.credit === 0 ? "" : item.credit.toString()}
                       onChange={(e) => updateLineItem(item.id, "credit", parseFloat(e.target.value) || 0)}
                       placeholder="0"
                       size="sm"
