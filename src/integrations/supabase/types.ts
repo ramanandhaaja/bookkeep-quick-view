@@ -9,7 +9,289 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      chart_of_accounts: {
+        Row: {
+          account_code: string
+          account_name: string
+          account_type: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          normal_balance: string
+        }
+        Insert: {
+          account_code: string
+          account_name: string
+          account_type: string
+          created_at?: string | null
+          id: string
+          is_active?: boolean | null
+          normal_balance: string
+        }
+        Update: {
+          account_code?: string
+          account_name?: string
+          account_type?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          normal_balance?: string
+        }
+        Relationships: []
+      }
+      journal_entries: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          date: string
+          description: string
+          id: string
+          notes: string | null
+          reference: string | null
+          source_id: string | null
+          source_type: string | null
+          total_credit: number
+          total_debit: number
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          date: string
+          description: string
+          id: string
+          notes?: string | null
+          reference?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          total_credit?: number
+          total_debit?: number
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          date?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          reference?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          total_credit?: number
+          total_debit?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      journal_line_items: {
+        Row: {
+          account: string
+          created_at: string | null
+          credit: number
+          debit: number
+          description: string
+          id: string
+          journal_entry_id: string
+        }
+        Insert: {
+          account: string
+          created_at?: string | null
+          credit?: number
+          debit?: number
+          description: string
+          id: string
+          journal_entry_id: string
+        }
+        Update: {
+          account?: string
+          created_at?: string | null
+          credit?: number
+          debit?: number
+          description?: string
+          id?: string
+          journal_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_line_items_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          purchase_id: string
+          quantity: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id: string
+          purchase_id: string
+          quantity: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          purchase_id?: string
+          quantity?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchases: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string | null
+          date: string
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          status: string
+          supplier: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string | null
+          date: string
+          id: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status: string
+          supplier: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string
+          supplier?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          quantity: number
+          sale_id: string
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id: string
+          quantity: number
+          sale_id: string
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          quantity?: number
+          sale_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string | null
+          customer: string
+          date: string
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          status: string
+          tax_amount: number | null
+          tax_percentage: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string | null
+          customer: string
+          date: string
+          id: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status: string
+          tax_amount?: number | null
+          tax_percentage?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string | null
+          customer?: string
+          date?: string
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string
+          tax_amount?: number | null
+          tax_percentage?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
