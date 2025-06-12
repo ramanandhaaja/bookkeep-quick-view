@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,6 +206,7 @@ const CreateJournalEntryForm = ({ open, onOpenChange, onSuccess }: CreateJournal
                       }}
                       placeholder="0"
                       size="sm"
+                      step="0.01"
                     />
                   </div>
                   <div className="col-span-2">
@@ -217,6 +219,7 @@ const CreateJournalEntryForm = ({ open, onOpenChange, onSuccess }: CreateJournal
                       }}
                       placeholder="0"
                       size="sm"
+                      step="0.01"
                     />
                   </div>
                   <div className="col-span-1">

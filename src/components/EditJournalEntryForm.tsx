@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -202,6 +203,7 @@ const EditJournalEntryForm = ({ open, onOpenChange, journalEntry, onSuccess }: E
                       }}
                       placeholder="0"
                       size="sm"
+                      step="0.01"
                     />
                   </div>
                   <div className="col-span-2">
@@ -214,6 +216,7 @@ const EditJournalEntryForm = ({ open, onOpenChange, journalEntry, onSuccess }: E
                       }}
                       placeholder="0"
                       size="sm"
+                      step="0.01"
                     />
                   </div>
                   <div className="col-span-1">
