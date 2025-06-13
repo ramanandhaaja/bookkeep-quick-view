@@ -18,7 +18,7 @@ import {
   deleteJournalEntry, 
   formatCurrency,
   JournalEntry 
-} from "@/lib/storage";
+} from "@/lib/supabaseStorage";
 import CreateJournalEntryForm from "@/components/CreateJournalEntryForm";
 import EditJournalEntryForm from "@/components/EditJournalEntryForm";
 import { useToast } from "@/hooks/use-toast";
@@ -29,23 +29,46 @@ const JournalEntries = () => {
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    setJournalEntries(getJournalEntries());
-  }, []);
-
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this journal entry?")) {
-      deleteJournalEntry(id);
-      setJournalEntries(getJournalEntries());
+  const loadJournalEntries = async () => {
+    try {
+      const entries = await getJournalEntries();
+      setJournalEntries(entries);
+    } catch (error) {
+      console.error("Error loading journal entries:", error);
       toast({
-        title: "Success",
-        description: "Journal entry deleted successfully",
+        title: "Error",
+        description: "Failed to load journal entries",
+        variant: "destructive",
       });
     }
   };
 
+  useEffect(() => {
+    loadJournalEntries();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this journal entry?")) {
+      try {
+        await deleteJournalEntry(id);
+        loadJournalEntries();
+        toast({
+          title: "Success",
+          description: "Journal entry deleted successfully",
+        });
+      } catch (error) {
+        console.error("Error deleting journal entry:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete journal entry",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const handleCreateSuccess = () => {
-    setJournalEntries(getJournalEntries());
+    loadJournalEntries();
     setIsCreateFormOpen(false);
     toast({
       title: "Success",
@@ -54,7 +77,7 @@ const JournalEntries = () => {
   };
 
   const handleEditSuccess = () => {
-    setJournalEntries(getJournalEntries());
+    loadJournalEntries();
     setEditingEntry(null);
     toast({
       title: "Success",
@@ -148,14 +171,14 @@ const JournalEntries = () => {
 
       <CreateJournalEntryForm
         open={isCreateFormOpen}
-        onOpenChange={setIsCreateFormOpen}
+        onClose={() => setIsCreateFormOpen(false)}
         onSuccess={handleCreateSuccess}
       />
 
       {editingEntry && (
         <EditJournalEntryForm
           open={!!editingEntry}
-          onOpenChange={(open) => !open && setEditingEntry(null)}
+          onClose={() => setEditingEntry(null)}
           journalEntry={editingEntry}
           onSuccess={handleEditSuccess}
         />
