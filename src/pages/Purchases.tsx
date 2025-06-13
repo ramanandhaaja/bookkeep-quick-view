@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ import {
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Pencil } from "lucide-react";
 import CreatePurchaseForm from "@/components/CreatePurchaseForm";
 import EditPurchaseForm from "@/components/EditPurchaseForm";
-import { getPurchases, deletePurchase, Purchase, formatCurrency } from "@/lib/storage";
+import { getPurchases, deletePurchase, Purchase, formatCurrency } from "@/lib/supabaseStorage";
 import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,20 +41,33 @@ const Purchases = () => {
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const loadPurchases = () => {
-    const loadedPurchases = getPurchases();
-    setPurchases(loadedPurchases);
+  const loadPurchases = async () => {
+    try {
+      setLoading(true);
+      const loadedPurchases = await getPurchases();
+      setPurchases(loadedPurchases);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load purchases",
+        variant: "destructive",
+      });
+      console.error("Error loading purchases:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadPurchases();
   }, []);
 
-  const handleDeletePurchase = (id: string) => {
+  const handleDeletePurchase = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this purchase?")) {
       try {
-        deletePurchase(id);
+        await deletePurchase(id);
         loadPurchases();
         toast({
           title: "Success",
@@ -65,6 +79,7 @@ const Purchases = () => {
           description: "Failed to delete purchase",
           variant: "destructive",
         });
+        console.error("Error deleting purchase:", error);
       }
     }
   };
@@ -97,6 +112,16 @@ const Purchases = () => {
     const matchesCategory = selectedCategory === "all" || purchase.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  if (loading) {
+    return (
+      <Layout title="Purchases" subtitle="Manage and track your purchase transactions">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-muted-foreground">Loading purchases...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout

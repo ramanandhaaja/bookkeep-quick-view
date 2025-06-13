@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ import {
   generateId,
   formatCurrency,
   getAllCategoriesFromTransactions
-} from "@/lib/storage";
+} from "@/lib/supabaseStorage";
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
@@ -48,6 +49,7 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
   const [items, setItems] = useState<SaleItem[]>([
     { id: generateId("ITM"), description: "", quantity: 1, unitPrice: 0 },
   ]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddItem = () => {
     setItems([
@@ -87,7 +89,7 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
     return calculateSubtotal() + calculateTaxAmount();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!customer) {
@@ -108,6 +110,8 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
       return;
     }
 
+    setIsSubmitting(true);
+
     const newSale: Sale = {
       id: generateId("INV"),
       customer,
@@ -124,12 +128,21 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
     };
 
     try {
-      saveSale(newSale);
+      await saveSale(newSale);
       
       toast({
         title: "Success",
         description: `Sale ${newSale.id} created successfully`,
       });
+      
+      // Reset form
+      setCustomer("");
+      setCategory("");
+      setDate(new Date().toISOString().split("T")[0]);
+      setStatus("Pending");
+      setNotes("");
+      setTaxPercentage(0);
+      setItems([{ id: generateId("ITM"), description: "", quantity: 1, unitPrice: 0 }]);
       
       onSuccess();
       onClose();
@@ -140,6 +153,8 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
         variant: "destructive",
       });
       console.error("Error saving sale:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -369,7 +384,9 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
             >
               <FileText className="h-4 w-4 mr-2" /> Create Invoice (PDF)
             </Button>
-            <Button type="submit">Create Sale</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Creating..." : "Create Sale"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

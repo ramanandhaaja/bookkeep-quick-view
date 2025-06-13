@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,7 @@ import {
   updatePurchase, 
   generateId,
   getAllCategoriesFromTransactions
-} from "@/lib/storage";
+} from "@/lib/supabaseStorage";
 import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
@@ -45,6 +46,7 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
   const [status, setStatus] = useState<Purchase["status"]>(purchase.status);
   const [notes, setNotes] = useState(purchase.notes || "");
   const [items, setItems] = useState<PurchaseItem[]>(purchase.items);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (purchase) {
@@ -87,7 +89,7 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
     }, 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!supplier) {
@@ -108,6 +110,8 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
       return;
     }
 
+    setIsSubmitting(true);
+
     const updatedPurchase: Purchase = {
       id: purchase.id,
       supplier,
@@ -117,10 +121,11 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
       items,
       notes: notes || undefined,
       category: category || undefined,
+      journalEntryId: purchase.journalEntryId,
     };
 
     try {
-      updatePurchase(updatedPurchase);
+      await updatePurchase(updatedPurchase);
       
       // Generate and save PDF
       const doc = generatePurchasePDF(updatedPurchase);
@@ -140,6 +145,8 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
         variant: "destructive",
       });
       console.error("Error updating purchase:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -310,7 +317,9 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">Update Purchase</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Updating..." : "Update Purchase"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

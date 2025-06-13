@@ -12,262 +12,347 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Trash2 } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { 
+  JournalEntry, 
+  JournalLineItem, 
   saveJournalEntry, 
-  generateId, 
-  getAllCategoriesFromTransactions,
-  JournalEntry,
-  JournalLineItem 
-} from "@/lib/storage";
+  generateId,
+  getAllCategoriesFromTransactions
+} from "@/lib/supabaseStorage";
+import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
 
 interface CreateJournalEntryFormProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   onSuccess: () => void;
 }
 
-const CreateJournalEntryForm = ({ open, onOpenChange, onSuccess }: CreateJournalEntryFormProps) => {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+const CreateJournalEntryForm = ({ open, onClose, onSuccess }: CreateJournalEntryFormProps) => {
+  const { toast } = useToast();
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
   const [category, setCategory] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
   const [lineItems, setLineItems] = useState<JournalLineItem[]>([
     { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 },
     { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 },
   ]);
 
-  const categories = getAllCategoriesFromTransactions();
-
-  const addLineItem = () => {
-    setLineItems([
-      ...lineItems,
-      { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 }
-    ]);
-  };
-
-  const removeLineItem = (id: string) => {
-    if (lineItems.length > 2) {
-      setLineItems(lineItems.filter(item => item.id !== id));
-    }
-  };
-
-  const updateLineItem = (id: string, field: keyof JournalLineItem, value: string | number) => {
-    setLineItems(lineItems.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
-  };
-
-  const calculateTotals = () => {
-    const totalDebit = lineItems.reduce((sum, item) => sum + (item.debit || 0), 0);
-    const totalCredit = lineItems.reduce((sum, item) => sum + (item.credit || 0), 0);
-    return { totalDebit, totalCredit };
-  };
-
-  const { totalDebit, totalCredit } = calculateTotals();
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isBalanced) {
-      alert("Journal entry must be balanced (Total Debit must equal Total Credit)");
-      return;
-    }
-
-    const journalEntry: JournalEntry = {
-      id: generateId("JE"),
-      date,
-      description,
-      reference: reference.trim() || undefined,
-      lineItems: lineItems.filter(item => item.account.trim() && (item.debit > 0 || item.credit > 0)),
-      totalDebit,
-      totalCredit,
-      notes: notes.trim() || undefined,
-      category: category || undefined,
-    };
-
-    saveJournalEntry(journalEntry);
-    
-    // Reset form
-    setDate(new Date().toISOString().split('T')[0]);
+  const resetForm = () => {
     setDescription("");
     setReference("");
     setCategory("");
+    setDate(new Date().toISOString().split("T")[0]);
     setNotes("");
     setLineItems([
       { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 },
       { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 },
     ]);
-    
-    onSuccess();
   };
 
+  const handleAddLineItem = () => {
+    setLineItems([
+      ...lineItems,
+      { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 },
+    ]);
+  };
+
+  const handleRemoveLineItem = (index: number) => {
+    if (lineItems.length > 2) {
+      setLineItems(lineItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateLineItem = (
+    index: number,
+    field: keyof JournalLineItem,
+    value: string | number
+  ) => {
+    const newLineItems = [...lineItems];
+    if (field === 'debit' || field === 'credit') {
+      newLineItems[index] = {
+        ...newLineItems[index],
+        [field]: typeof value === 'string' ? parseFloat(value) || 0 : value,
+      };
+    } else {
+      newLineItems[index] = {
+        ...newLineItems[index],
+        [field]: value,
+      };
+    }
+    setLineItems(newLineItems);
+  };
+
+  const calculateTotals = () => {
+    const totalDebit = lineItems.reduce((sum, item) => sum + item.debit, 0);
+    const totalCredit = lineItems.reduce((sum, item) => sum + item.credit, 0);
+    return { totalDebit, totalCredit };
+  };
+
+  const isBalanced = () => {
+    const { totalDebit, totalCredit } = calculateTotals();
+    return Math.abs(totalDebit - totalCredit) < 0.01; // Allow for small rounding differences
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!description) {
+      toast({
+        title: "Error",
+        description: "Please enter a description",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (lineItems.some(item => !item.account || !item.description)) {
+      toast({
+        title: "Error",
+        description: "Please fill in all line item details",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isBalanced()) {
+      toast({
+        title: "Error",
+        description: "Journal entry must be balanced (debits must equal credits)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { totalDebit, totalCredit } = calculateTotals();
+
+    const newJournalEntry: JournalEntry = {
+      id: generateId("JE"),
+      date,
+      description,
+      reference: reference || undefined,
+      category: category || undefined,
+      notes: notes || undefined,
+      totalDebit,
+      totalCredit,
+      lineItems,
+    };
+
+    try {
+      await saveJournalEntry(newJournalEntry);
+      
+      toast({
+        title: "Success",
+        description: `Journal entry ${newJournalEntry.id} created successfully`,
+      });
+      
+      resetForm();
+      onSuccess();
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save journal entry",
+        variant: "destructive",
+      });
+      console.error("Error saving journal entry:", error);
+    }
+  };
+
+  const { totalDebit, totalCredit } = calculateTotals();
+  const balanced = isBalanced();
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Journal Entry</DialogTitle>
           <DialogDescription>
-            Create a manual journal entry for accounting transactions.
+            Create a new journal entry with balanced debits and credits
           </DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="reference">Reference (Optional)</Label>
-              <Input
-                id="reference"
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="e.g., INV-001, CHK-123"
-              />
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Input
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Journal entry description"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <CategorySelect
-              value={category}
-              onValueChange={setCategory}
-              categories={categories}
-              placeholder="Select or create category"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <Label className="text-base font-semibold">Line Items</Label>
-              <Button type="button" onClick={addLineItem} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Line
-              </Button>
-            </div>
-            
-            <div className="border rounded-lg overflow-hidden">
-              <div className="grid grid-cols-12 gap-2 p-3 bg-muted font-medium text-sm">
-                <div className="col-span-3">Account</div>
-                <div className="col-span-4">Description</div>
-                <div className="col-span-2">Debit</div>
-                <div className="col-span-2">Credit</div>
-                <div className="col-span-1">Action</div>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Enter journal entry description"
+                  required
+                />
               </div>
-              
-              {lineItems.map((item, index) => (
-                <div key={item.id} className="grid grid-cols-12 gap-2 p-3 border-t">
-                  <div className="col-span-3">
-                    <Input
-                      value={item.account}
-                      onChange={(e) => updateLineItem(item.id, "account", e.target.value)}
-                      placeholder="Account name"
-                      size="sm"
-                    />
+
+              <div className="space-y-2">
+                <Label htmlFor="reference">Reference (Optional)</Label>
+                <Input
+                  id="reference"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="Enter reference number"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <CategorySelect
+                  value={category}
+                  onValueChange={setCategory}
+                  categories={getAllCategoriesFromTransactions()}
+                  placeholder="Select or create category"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label>Line Items</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAddLineItem}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add Line
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {lineItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-12 gap-2 items-end border p-3 rounded-md"
+                  >
+                    <div className="col-span-3">
+                      <Label htmlFor={`account-${index}`}>Account</Label>
+                      <Input
+                        id={`account-${index}`}
+                        value={item.account}
+                        onChange={(e) =>
+                          updateLineItem(index, "account", e.target.value)
+                        }
+                        placeholder="Account name"
+                        required
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <Label htmlFor={`line-description-${index}`}>
+                        Description
+                      </Label>
+                      <Input
+                        id={`line-description-${index}`}
+                        value={item.description}
+                        onChange={(e) =>
+                          updateLineItem(index, "description", e.target.value)
+                        }
+                        placeholder="Line item description"
+                        required
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor={`debit-${index}`}>Debit</Label>
+                      <Input
+                        id={`debit-${index}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.debit}
+                        onChange={(e) =>
+                          updateLineItem(index, "debit", e.target.value)
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor={`credit-${index}`}>Credit</Label>
+                      <Input
+                        id={`credit-${index}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.credit}
+                        onChange={(e) =>
+                          updateLineItem(index, "credit", e.target.value)
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="col-span-1 flex justify-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveLineItem(index)}
+                        disabled={lineItems.length <= 2}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="col-span-4">
-                    <Input
-                      value={item.description}
-                      onChange={(e) => updateLineItem(item.id, "description", e.target.value)}
-                      placeholder="Line description"
-                      size="sm"
-                    />
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center bg-muted p-3 rounded-md">
+                <div className="flex gap-6">
+                  <div>
+                    <span className="text-sm font-medium">Total Debits: </span>
+                    <span className="font-mono">${totalDebit.toFixed(2)}</span>
                   </div>
-                  <div className="col-span-2">
-                    <Input
-                      type="number"
-                      value={item.debit === 0 ? "" : item.debit.toString()}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
-                        updateLineItem(item.id, "debit", value);
-                      }}
-                      placeholder="0"
-                      size="sm"
-                      step="0.01"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Input
-                      type="number"
-                      value={item.credit === 0 ? "" : item.credit.toString()}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
-                        updateLineItem(item.id, "credit", value);
-                      }}
-                      placeholder="0"
-                      size="sm"
-                      step="0.01"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeLineItem(item.id)}
-                      disabled={lineItems.length <= 2}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div>
+                    <span className="text-sm font-medium">Total Credits: </span>
+                    <span className="font-mono">${totalCredit.toFixed(2)}</span>
                   </div>
                 </div>
-              ))}
-              
-              <div className="grid grid-cols-12 gap-2 p-3 border-t bg-muted/50 font-medium">
-                <div className="col-span-7">Total</div>
-                <div className="col-span-2 text-right">{totalDebit.toFixed(2)}</div>
-                <div className="col-span-2 text-right">{totalCredit.toFixed(2)}</div>
-                <div className="col-span-1"></div>
-              </div>
-              
-              {!isBalanced && (
-                <div className="p-3 bg-destructive/10 text-destructive text-sm">
-                  ⚠️ Journal entry is not balanced. Total Debit ({totalDebit.toFixed(2)}) must equal Total Credit ({totalCredit.toFixed(2)}).
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      balanced ? "bg-green-500" : "bg-red-500"
+                    }`}
+                  />
+                  <span className="text-sm">
+                    {balanced ? "Balanced" : "Not Balanced"}
+                  </span>
                 </div>
-              )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Enter additional notes"
+                rows={3}
+              />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Additional notes"
-              rows={3}
-            />
-          </div>
-          
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!isBalanced}>
-              Create Journal Entry
+            <Button type="submit" disabled={!balanced}>
+              Create Entry
             </Button>
           </DialogFooter>
         </form>

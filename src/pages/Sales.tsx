@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ import {
 import { Plus, MoreHorizontal, Download, FileText, Trash, Filter, Pencil } from "lucide-react";
 import CreateSaleForm from "@/components/CreateSaleForm";
 import EditSaleForm from "@/components/EditSaleForm";
-import { getSales, deleteSale, Sale, formatCurrency } from "@/lib/storage";
+import { getSales, deleteSale, Sale, formatCurrency } from "@/lib/supabaseStorage";
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,20 +41,33 @@ const Sales = () => {
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const loadSales = () => {
-    const loadedSales = getSales();
-    setSales(loadedSales);
+  const loadSales = async () => {
+    try {
+      setLoading(true);
+      const loadedSales = await getSales();
+      setSales(loadedSales);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load sales",
+        variant: "destructive",
+      });
+      console.error("Error loading sales:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadSales();
   }, []);
 
-  const handleDeleteSale = (id: string) => {
+  const handleDeleteSale = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this sale?")) {
       try {
-        deleteSale(id);
+        await deleteSale(id);
         loadSales();
         toast({
           title: "Success",
@@ -65,6 +79,7 @@ const Sales = () => {
           description: "Failed to delete sale",
           variant: "destructive",
         });
+        console.error("Error deleting sale:", error);
       }
     }
   };
@@ -97,6 +112,16 @@ const Sales = () => {
     const matchesCategory = selectedCategory === "all" || sale.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  if (loading) {
+    return (
+      <Layout title="Sales" subtitle="Manage and track your sales transactions">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-muted-foreground">Loading sales...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout
