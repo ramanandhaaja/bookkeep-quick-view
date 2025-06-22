@@ -1,7 +1,8 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseUrl = "https://owppnnfcmalpomkerqku.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93cHBubmZjbWFscG9ta2VycWt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NzE1ODQsImV4cCI6MjA2NTE0NzU4NH0.IQDK_hgr0s_3RA4-8mRpx6rMweSlK9bCtmD_2KXEpTQ";
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface Sale {
@@ -53,6 +54,16 @@ export interface JournalEntry {
   category?: string;
   totalDebit: number;
   totalCredit: number;
+  notes?: string;
+  lineItems?: JournalLineItem[];
+}
+
+export interface JournalLineItem {
+  id: string;
+  account: string;
+  description: string;
+  debit: number;
+  credit: number;
 }
 
 export interface Contact {
@@ -217,6 +228,7 @@ export const updateJournalEntry = async (entry: JournalEntry): Promise<void> => 
       category: entry.category,
       totalDebit: entry.totalDebit,
       totalCredit: entry.totalCredit,
+      notes: entry.notes,
     })
     .eq('id', entry.id);
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +50,19 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
     { id: generateId("ITM"), description: "", quantity: 1, unitPrice: 0 },
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categoryList = await getAllCategoriesFromTransactions();
+        setCategories(categoryList);
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      }
+    };
+    loadCategories();
+  }, []);
 
   const handleAddItem = () => {
     setItems([
@@ -210,7 +223,7 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
                 <CategorySelect
                   value={category}
                   onValueChange={setCategory}
-                  categories={getAllCategoriesFromTransactions()}
+                  categories={categories}
                   placeholder="Select or create category"
                 />
               </div>

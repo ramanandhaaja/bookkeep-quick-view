@@ -47,6 +47,7 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
   const [notes, setNotes] = useState(purchase.notes || "");
   const [items, setItems] = useState<PurchaseItem[]>(purchase.items);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     if (purchase) {
@@ -58,6 +59,18 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
       setItems([...purchase.items]);
     }
   }, [purchase]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categoryList = await getAllCategoriesFromTransactions();
+        setCategories(categoryList);
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      }
+    };
+    loadCategories();
+  }, []);
 
   const handleAddItem = () => {
     setItems([
@@ -177,7 +190,7 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
                 <CategorySelect
                   value={category}
                   onValueChange={setCategory}
-                  categories={getAllCategoriesFromTransactions()}
+                  categories={categories}
                   placeholder="Select or create category"
                 />
               </div>

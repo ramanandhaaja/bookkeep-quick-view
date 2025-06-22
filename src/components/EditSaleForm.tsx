@@ -26,7 +26,7 @@ import {
   generateId,
   formatCurrency,
   getAllCategoriesFromTransactions
-} from "@/lib/storage";
+} from "@/lib/supabaseStorage";
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
@@ -48,6 +48,7 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
   const [notes, setNotes] = useState(sale.notes || "");
   const [taxPercentage, setTaxPercentage] = useState<number>(sale.tax?.percentage || 0);
   const [items, setItems] = useState<SaleItem[]>(sale.items);
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     if (sale) {
@@ -60,6 +61,18 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
       setItems([...sale.items]);
     }
   }, [sale]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categoryList = await getAllCategoriesFromTransactions();
+        setCategories(categoryList);
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      }
+    };
+    loadCategories();
+  }, []);
 
   const handleAddItem = () => {
     setItems([
@@ -207,7 +220,7 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
                 <CategorySelect
                   value={category}
                   onValueChange={setCategory}
-                  categories={getAllCategoriesFromTransactions()}
+                  categories={categories}
                   placeholder="Select or create category"
                 />
               </div>
