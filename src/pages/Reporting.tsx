@@ -5,35 +5,72 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Download, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
-import { getSales, getPurchases, formatCurrency } from "@/lib/storage";
+import { getSales, getPurchases, getJournalEntries, formatCurrency } from "@/lib/supabaseStorage";
+import { useToast } from "@/hooks/use-toast";
 
 const Reporting = () => {
+  const { toast } = useToast();
   const [sales, setSales] = useState([]);
   const [purchases, setPurchases] = useState([]);
+  const [journalEntries, setJournalEntries] = useState([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [netProfit, setNetProfit] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadedSales = getSales();
-    const loadedPurchases = getPurchases();
-    
-    setSales(loadedSales);
-    setPurchases(loadedPurchases);
+    const loadReportData = async () => {
+      try {
+        setLoading(true);
+        
+        // Load data from Supabase
+        const [loadedSales, loadedPurchases, loadedJournalEntries] = await Promise.all([
+          getSales(),
+          getPurchases(),
+          getJournalEntries()
+        ]);
+        
+        setSales(loadedSales);
+        setPurchases(loadedPurchases);
+        setJournalEntries(loadedJournalEntries);
 
-    // Calculate totals
-    const revenue = loadedSales
-      .filter(sale => sale.status === "Paid")
-      .reduce((sum, sale) => sum + sale.amount, 0);
-    
-    const expenses = loadedPurchases
-      .filter(purchase => purchase.status === "Received")
-      .reduce((sum, purchase) => sum + purchase.amount, 0);
-    
-    setTotalRevenue(revenue);
-    setTotalExpenses(expenses);
-    setNetProfit(revenue - expenses);
-  }, []);
+        // Calculate totals from sales
+        const revenue = loadedSales
+          .filter(sale => sale.status === "Paid")
+          .reduce((sum, sale) => sum + sale.amount, 0);
+        
+        // Calculate expenses from purchases
+        const expenses = loadedPurchases
+          .filter(purchase => purchase.status === "Received")
+          .reduce((sum, purchase) => sum + purchase.amount, 0);
+        
+        // Add manual accounting entries (debits are expenses, credits are revenue)
+        const journalRevenue = loadedJournalEntries
+          .reduce((sum, entry) => sum + entry.totalCredit, 0);
+        
+        const journalExpenses = loadedJournalEntries
+          .reduce((sum, entry) => sum + entry.totalDebit, 0);
+        
+        const totalRev = revenue + journalRevenue;
+        const totalExp = expenses + journalExpenses;
+        
+        setTotalRevenue(totalRev);
+        setTotalExpenses(totalExp);
+        setNetProfit(totalRev - totalExp);
+      } catch (error) {
+        console.error("Error loading report data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load report data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReportData();
+  }, [toast]);
 
   const salesByMonth = sales.reduce((acc, sale) => {
     if (sale.status === "Paid") {
@@ -51,7 +88,32 @@ const Reporting = () => {
     return acc;
   }, {});
 
-  const allMonths = [...new Set([...Object.keys(salesByMonth), ...Object.keys(purchasesByMonth)])];
+  // Add journal entries by month
+  const journalByMonth = journalEntries.reduce((acc, entry) => {
+    const month = new Date(entry.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
+    if (!acc[month]) {
+      acc[month] = { revenue: 0, expenses: 0 };
+    }
+    acc[month].revenue += entry.totalCredit;
+    acc[month].expenses += entry.totalDebit;
+    return acc;
+  }, {});
+
+  const allMonths = [...new Set([
+    ...Object.keys(salesByMonth), 
+    ...Object.keys(purchasesByMonth),
+    ...Object.keys(journalByMonth)
+  ])];
+
+  if (loading) {
+    return (
+      <Layout title="Reporting" subtitle="Financial reports and analytics">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-muted-foreground">Loading report data...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout
@@ -80,6 +142,7 @@ const Reporting = () => {
           <TabsTrigger value="summary">Summary</TabsTrigger>
           <TabsTrigger value="profit-loss">Profit & Loss</TabsTrigger>
           <TabsTrigger value="monthly">Monthly Breakdown</TabsTrigger>
+          <TabsTrigger value="journal">Journal Summary</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary">
@@ -93,6 +156,9 @@ const Reporting = () => {
                 <div className="text-2xl font-bold text-green-600">
                   {formatCurrency(totalRevenue)}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sales + Journal Credits
+                </p>
               </CardContent>
             </Card>
 
@@ -105,6 +171,9 @@ const Reporting = () => {
                 <div className="text-2xl font-bold text-red-600">
                   {formatCurrency(totalExpenses)}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Purchases + Journal Debits
+                </p>
               </CardContent>
             </Card>
 
@@ -133,7 +202,15 @@ const Reporting = () => {
                   <h3 className="font-semibold text-lg mb-2">Revenue</h3>
                   <div className="flex justify-between">
                     <span>Sales Revenue</span>
-                    <span className="font-medium text-green-600">{formatCurrency(totalRevenue)}</span>
+                    <span className="font-medium text-green-600">
+                      {formatCurrency(sales.filter(s => s.status === "Paid").reduce((sum, s) => sum + s.amount, 0))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Journal Credits (Manual Entries)</span>
+                    <span className="font-medium text-green-600">
+                      {formatCurrency(journalEntries.reduce((sum, j) => sum + j.totalCredit, 0))}
+                    </span>
                   </div>
                   <div className="flex justify-between font-semibold border-t pt-2 mt-2">
                     <span>Total Revenue</span>
@@ -144,8 +221,16 @@ const Reporting = () => {
                 <div className="border-b pb-4">
                   <h3 className="font-semibold text-lg mb-2">Expenses</h3>
                   <div className="flex justify-between">
-                    <span>Cost of Goods Sold</span>
-                    <span className="font-medium text-red-600">{formatCurrency(totalExpenses)}</span>
+                    <span>Cost of Goods Sold (Purchases)</span>
+                    <span className="font-medium text-red-600">
+                      {formatCurrency(purchases.filter(p => p.status === "Received").reduce((sum, p) => sum + p.amount, 0))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Journal Debits (Manual Entries)</span>
+                    <span className="font-medium text-red-600">
+                      {formatCurrency(journalEntries.reduce((sum, j) => sum + j.totalDebit, 0))}
+                    </span>
                   </div>
                   <div className="flex justify-between font-semibold border-t pt-2 mt-2">
                     <span>Total Expenses</span>
@@ -172,8 +257,12 @@ const Reporting = () => {
             <CardContent>
               <div className="space-y-4">
                 {allMonths.map(month => {
-                  const monthRevenue = salesByMonth[month] || 0;
-                  const monthExpenses = purchasesByMonth[month] || 0;
+                  const monthSalesRevenue = salesByMonth[month] || 0;
+                  const monthPurchaseExpenses = purchasesByMonth[month] || 0;
+                  const monthJournalData = journalByMonth[month] || { revenue: 0, expenses: 0 };
+                  
+                  const monthRevenue = monthSalesRevenue + monthJournalData.revenue;
+                  const monthExpenses = monthPurchaseExpenses + monthJournalData.expenses;
                   const monthProfit = monthRevenue - monthExpenses;
                   
                   return (
@@ -183,10 +272,16 @@ const Reporting = () => {
                         <div>
                           <span className="text-sm text-muted-foreground">Revenue</span>
                           <div className="font-medium text-green-600">{formatCurrency(monthRevenue)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Sales: {formatCurrency(monthSalesRevenue)} | Journal: {formatCurrency(monthJournalData.revenue)}
+                          </div>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">Expenses</span>
                           <div className="font-medium text-red-600">{formatCurrency(monthExpenses)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Purchases: {formatCurrency(monthPurchaseExpenses)} | Journal: {formatCurrency(monthJournalData.expenses)}
+                          </div>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">Profit</span>
@@ -198,6 +293,55 @@ const Reporting = () => {
                     </div>
                   );
                 })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="journal">
+          <Card>
+            <CardHeader>
+              <CardTitle>Manual Journal Entries Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-semibold mb-2">Total Journal Debits</h4>
+                    <div className="text-2xl font-bold text-red-600">
+                      {formatCurrency(journalEntries.reduce((sum, j) => sum + j.totalDebit, 0))}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Manual expense entries</p>
+                  </div>
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-semibold mb-2">Total Journal Credits</h4>
+                    <div className="text-2xl font-bold text-green-600">
+                      {formatCurrency(journalEntries.reduce((sum, j) => sum + j.totalCredit, 0))}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Manual revenue entries</p>
+                  </div>
+                </div>
+                
+                <div className="mt-6">
+                  <h4 className="font-semibold mb-3">Recent Journal Entries</h4>
+                  <div className="space-y-2">
+                    {journalEntries.slice(0, 5).map(entry => (
+                      <div key={entry.id} className="flex justify-between items-center border-b pb-2">
+                        <div>
+                          <div className="font-medium">{entry.description}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(entry.date).toLocaleDateString('id-ID')} 
+                            {entry.reference && ` • ${entry.reference}`}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-red-600">Dr: {formatCurrency(entry.totalDebit)}</div>
+                          <div className="text-green-600">Cr: {formatCurrency(entry.totalCredit)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

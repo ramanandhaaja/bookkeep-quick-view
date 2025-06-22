@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -44,7 +43,6 @@ const Sidebar = () => {
       icon: ShoppingCart,
       children: [
         { title: "Sales", href: "/sales" },
-        { title: "Invoices", href: "/invoices" },
       ],
     },
     {
@@ -52,7 +50,6 @@ const Sidebar = () => {
       icon: Receipt,
       children: [
         { title: "Purchases", href: "/purchases" },
-        { title: "Purchase Orders", href: "/purchase-orders" },
       ],
     },
     {
