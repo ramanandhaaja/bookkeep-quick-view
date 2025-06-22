@@ -39,6 +39,39 @@ export type Database = {
         }
         Relationships: []
       }
+      contacts: {
+        Row: {
+          balance: number | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          balance?: number | null
+          created_at?: string | null
+          email?: string | null
+          id: string
+          name: string
+          phone?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          balance?: number | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           category: string | null

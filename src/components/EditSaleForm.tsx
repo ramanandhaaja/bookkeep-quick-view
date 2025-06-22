@@ -30,6 +30,7 @@ import {
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
+import CustomerSelect from "./CustomerSelect";
 
 interface EditSaleFormProps {
   open: boolean;
@@ -194,12 +195,10 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="customer">Customer Name</Label>
-                <Input
-                  id="customer"
+                <CustomerSelect
                   value={customer}
-                  onChange={(e) => setCustomer(e.target.value)}
-                  placeholder="Enter customer name"
-                  required
+                  onValueChange={setCustomer}
+                  placeholder="Select or create customer"
                 />
               </div>
 

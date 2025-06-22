@@ -29,6 +29,7 @@ import {
 import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
+import SupplierSelect from "./SupplierSelect";
 
 interface CreatePurchaseFormProps {
   open: boolean;
@@ -148,12 +149,10 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="supplier">Supplier Name</Label>
-                <Input
-                  id="supplier"
+                <SupplierSelect
                   value={supplier}
-                  onChange={(e) => setSupplier(e.target.value)}
-                  placeholder="Enter supplier name"
-                  required
+                  onValueChange={setSupplier}
+                  placeholder="Select or create supplier"
                 />
               </div>
 

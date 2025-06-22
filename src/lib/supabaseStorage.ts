@@ -1,35 +1,15 @@
+import { createClient } from '@supabase/supabase-js';
 
-import { supabase } from "@/integrations/supabase/client";
-
-// Supabase-based storage for accounting system
-export interface JournalEntry {
-  id: string;
-  date: string;
-  description: string;
-  reference?: string;
-  category?: string;
-  notes?: string;
-  totalDebit: number;
-  totalCredit: number;
-  lineItems: JournalLineItem[];
-  sourceType?: string;
-  sourceId?: string;
-}
-
-export interface JournalLineItem {
-  id: string;
-  account: string;
-  description: string;
-  debit: number;
-  credit: number;
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface Sale {
   id: string;
   customer: string;
   date: string;
   amount: number;
-  status: "Paid" | "Pending" | "Overdue";
+  status: 'Paid' | 'Pending' | 'Overdue';
   items: SaleItem[];
   notes?: string;
   tax?: {
@@ -37,7 +17,6 @@ export interface Sale {
     amount: number;
   };
   category?: string;
-  journalEntryId?: string;
 }
 
 export interface SaleItem {
@@ -52,7 +31,7 @@ export interface Purchase {
   supplier: string;
   date: string;
   amount: number;
-  status: "Received" | "Pending" | "Cancelled";
+  status: 'Received' | 'Pending' | 'Cancelled';
   items: PurchaseItem[];
   notes?: string;
   category?: string;
@@ -66,121 +45,185 @@ export interface PurchaseItem {
   unitPrice: number;
 }
 
-// Journal Entry Operations
-export const saveJournalEntry = async (entry: JournalEntry): Promise<void> => {
-  // Save journal entry
-  const { error: journalError } = await supabase
-    .from('journal_entries')
-    .insert({
-      id: entry.id,
-      date: entry.date,
-      description: entry.description,
-      reference: entry.reference,
-      category: entry.category,
-      notes: entry.notes,
-      total_debit: entry.totalDebit,
-      total_credit: entry.totalCredit,
-      source_type: entry.sourceType,
-      source_id: entry.sourceId,
-    });
+export interface JournalEntry {
+  id: string;
+  date: string;
+  reference?: string;
+  description: string;
+  category?: string;
+  totalDebit: number;
+  totalCredit: number;
+}
 
-  if (journalError) throw journalError;
+export interface Contact {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  type: 'Customer' | 'Supplier';
+  balance: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
-  // Save line items
-  const lineItemsData = entry.lineItems.map(item => ({
-    id: item.id,
-    journal_entry_id: entry.id,
-    account: item.account,
-    description: item.description,
-    debit: item.debit,
-    credit: item.credit,
-  }));
+export const getSales = async (): Promise<Sale[]> => {
+  const { data, error } = await supabase
+    .from('sales')
+    .select('*')
+    .order('date', { ascending: false });
 
-  const { error: lineItemsError } = await supabase
-    .from('journal_line_items')
-    .insert(lineItemsData);
+  if (error) {
+    console.error('Error fetching sales:', error);
+    throw error;
+  }
 
-  if (lineItemsError) throw lineItemsError;
+  return data || [];
 };
 
-export const updateJournalEntry = async (entry: JournalEntry): Promise<void> => {
-  // Update journal entry
-  const { error: journalError } = await supabase
-    .from('journal_entries')
+export const saveSale = async (sale: Sale): Promise<void> => {
+  const { error } = await supabase
+    .from('sales')
+    .insert([sale]);
+
+  if (error) {
+    console.error('Error saving sale:', error);
+    throw error;
+  }
+};
+
+export const updateSale = async (sale: Sale): Promise<void> => {
+  const { error } = await supabase
+    .from('sales')
     .update({
-      date: entry.date,
-      description: entry.description,
-      reference: entry.reference,
-      category: entry.category,
-      notes: entry.notes,
-      total_debit: entry.totalDebit,
-      total_credit: entry.totalCredit,
-      updated_at: new Date().toISOString(),
+      customer: sale.customer,
+      date: sale.date,
+      amount: sale.amount,
+      status: sale.status,
+      items: sale.items,
+      notes: sale.notes,
+      tax: sale.tax,
+      category: sale.category,
     })
-    .eq('id', entry.id);
+    .eq('id', sale.id);
 
-  if (journalError) throw journalError;
+  if (error) {
+    console.error('Error updating sale:', error);
+    throw error;
+  }
+};
 
-  // Delete existing line items
-  const { error: deleteError } = await supabase
-    .from('journal_line_items')
+export const deleteSale = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('sales')
     .delete()
-    .eq('journal_entry_id', entry.id);
+    .eq('id', id);
 
-  if (deleteError) throw deleteError;
+  if (error) {
+    console.error('Error deleting sale:', error);
+    throw error;
+  }
+};
 
-  // Insert updated line items
-  const lineItemsData = entry.lineItems.map(item => ({
-    id: item.id,
-    journal_entry_id: entry.id,
-    account: item.account,
-    description: item.description,
-    debit: item.debit,
-    credit: item.credit,
-  }));
+export const getPurchases = async (): Promise<Purchase[]> => {
+  const { data, error } = await supabase
+    .from('purchases')
+    .select('*')
+    .order('date', { ascending: false });
 
-  const { error: lineItemsError } = await supabase
-    .from('journal_line_items')
-    .insert(lineItemsData);
+  if (error) {
+    console.error('Error fetching purchases:', error);
+    throw error;
+  }
 
-  if (lineItemsError) throw lineItemsError;
+  return data || [];
+};
+
+export const savePurchase = async (purchase: Purchase): Promise<void> => {
+  const { error } = await supabase
+    .from('purchases')
+    .insert([purchase]);
+
+  if (error) {
+    console.error('Error saving purchase:', error);
+    throw error;
+  }
+};
+
+export const updatePurchase = async (purchase: Purchase): Promise<void> => {
+  const { error } = await supabase
+    .from('purchases')
+    .update({
+      supplier: purchase.supplier,
+      date: purchase.date,
+      amount: purchase.amount,
+      status: purchase.status,
+      items: purchase.items,
+      notes: purchase.notes,
+      category: purchase.category,
+      journalEntryId: purchase.journalEntryId,
+    })
+    .eq('id', purchase.id);
+
+  if (error) {
+    console.error('Error updating purchase:', error);
+    throw error;
+  }
+};
+
+export const deletePurchase = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('purchases')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting purchase:', error);
+    throw error;
+  }
 };
 
 export const getJournalEntries = async (): Promise<JournalEntry[]> => {
-  const { data: entries, error: entriesError } = await supabase
+  const { data, error } = await supabase
     .from('journal_entries')
     .select('*')
     .order('date', { ascending: false });
 
-  if (entriesError) throw entriesError;
+  if (error) {
+    console.error('Error fetching journal entries:', error);
+    throw error;
+  }
 
-  const { data: lineItems, error: lineItemsError } = await supabase
-    .from('journal_line_items')
-    .select('*');
+  return data || [];
+};
 
-  if (lineItemsError) throw lineItemsError;
+export const saveJournalEntry = async (entry: JournalEntry): Promise<void> => {
+  const { error } = await supabase
+    .from('journal_entries')
+    .insert([entry]);
 
-  return entries.map(entry => ({
-    id: entry.id,
-    date: entry.date,
-    description: entry.description,
-    reference: entry.reference,
-    category: entry.category,
-    notes: entry.notes,
-    totalDebit: entry.total_debit,
-    totalCredit: entry.total_credit,
-    sourceType: entry.source_type,
-    sourceId: entry.source_id,
-    lineItems: lineItems
-      .filter(item => item.journal_entry_id === entry.id)
-      .map(item => ({
-        id: item.id,
-        account: item.account,
-        description: item.description,
-        debit: item.debit,
-        credit: item.credit,
-      })),
-  }));
+  if (error) {
+    console.error('Error saving journal entry:', error);
+    throw error;
+  }
+};
+
+export const updateJournalEntry = async (entry: JournalEntry): Promise<void> => {
+  const { error } = await supabase
+    .from('journal_entries')
+    .update({
+      date: entry.date,
+      reference: entry.reference,
+      description: entry.description,
+      category: entry.category,
+      totalDebit: entry.totalDebit,
+      totalCredit: entry.totalCredit,
+    })
+    .eq('id', entry.id);
+
+  if (error) {
+    console.error('Error updating journal entry:', error);
+    throw error;
+  }
 };
 
 export const deleteJournalEntry = async (id: string): Promise<void> => {
@@ -189,385 +232,160 @@ export const deleteJournalEntry = async (id: string): Promise<void> => {
     .delete()
     .eq('id', id);
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error deleting journal entry:', error);
+    throw error;
+  }
 };
 
-// Create journal entry for sale
-const createSaleJournalEntry = async (sale: Sale): Promise<string> => {
-  const journalEntry: JournalEntry = {
-    id: generateId("JE"),
-    date: sale.date,
-    description: `Sale to ${sale.customer}`,
-    reference: sale.id,
-    category: sale.category,
-    sourceType: "sale",
-    sourceId: sale.id,
-    totalDebit: sale.amount,
-    totalCredit: sale.amount,
-    lineItems: [
-      {
-        id: generateId("JLI"),
-        account: "Accounts Receivable",
-        description: `Sale to ${sale.customer}`,
-        debit: sale.amount,
-        credit: 0,
-      },
-      {
-        id: generateId("JLI"),
-        account: "Sales Revenue",
-        description: `Sale to ${sale.customer}`,
-        debit: 0,
-        credit: sale.amount,
-      },
-    ],
-  };
+export const getContacts = async (): Promise<Contact[]> => {
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('*')
+    .order('name');
 
-  // Add tax entries if applicable
-  if (sale.tax && sale.tax.amount > 0) {
-    journalEntry.lineItems[0].debit = sale.amount; // Total including tax
-    journalEntry.lineItems[1].credit = sale.amount - sale.tax.amount; // Revenue without tax
-    journalEntry.lineItems.push({
-      id: generateId("JLI"),
-      account: "Sales Tax Payable",
-      description: `Sales tax for ${sale.customer}`,
-      debit: 0,
-      credit: sale.tax.amount,
-    });
+  if (error) {
+    console.error('Error fetching contacts:', error);
+    throw error;
   }
 
-  await saveJournalEntry(journalEntry);
-  return journalEntry.id;
+  return data || [];
 };
 
-// Create journal entry for purchase
-const createPurchaseJournalEntry = async (purchase: Purchase): Promise<string> => {
-  const journalEntry: JournalEntry = {
-    id: generateId("JE"),
-    date: purchase.date,
-    description: `Purchase from ${purchase.supplier}`,
-    reference: purchase.id,
-    category: purchase.category,
-    sourceType: "purchase",
-    sourceId: purchase.id,
-    totalDebit: purchase.amount,
-    totalCredit: purchase.amount,
-    lineItems: [
-      {
-        id: generateId("JLI"),
-        account: "Operating Expenses",
-        description: `Purchase from ${purchase.supplier}`,
-        debit: purchase.amount,
-        credit: 0,
-      },
-      {
-        id: generateId("JLI"),
-        account: "Accounts Payable",
-        description: `Purchase from ${purchase.supplier}`,
-        debit: 0,
-        credit: purchase.amount,
-      },
-    ],
-  };
-
-  await saveJournalEntry(journalEntry);
-  return journalEntry.id;
-};
-
-// Sales Operations
-export const saveSale = async (sale: Sale): Promise<void> => {
-  // Create journal entry first
-  const journalEntryId = await createSaleJournalEntry(sale);
-
-  // Save sale
-  const { error: saleError } = await supabase
-    .from('sales')
-    .insert({
-      id: sale.id,
-      customer: sale.customer,
-      date: sale.date,
-      amount: sale.amount,
-      status: sale.status,
-      category: sale.category,
-      notes: sale.notes,
-      tax_percentage: sale.tax?.percentage || 0,
-      tax_amount: sale.tax?.amount || 0,
-      journal_entry_id: journalEntryId,
-    });
-
-  if (saleError) throw saleError;
-
-  // Save sale items
-  const saleItemsData = sale.items.map(item => ({
-    id: item.id,
-    sale_id: sale.id,
-    description: item.description,
-    quantity: item.quantity,
-    unit_price: item.unitPrice,
-  }));
-
-  const { error: itemsError } = await supabase
-    .from('sale_items')
-    .insert(saleItemsData);
-
-  if (itemsError) throw itemsError;
-};
-
-export const updateSale = async (sale: Sale): Promise<void> => {
-  // Update sale
-  const { error: saleError } = await supabase
-    .from('sales')
-    .update({
-      customer: sale.customer,
-      date: sale.date,
-      amount: sale.amount,
-      status: sale.status,
-      category: sale.category,
-      notes: sale.notes,
-      tax_percentage: sale.tax?.percentage || 0,
-      tax_amount: sale.tax?.amount || 0,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', sale.id);
-
-  if (saleError) throw saleError;
-
-  // Delete existing items
-  const { error: deleteError } = await supabase
-    .from('sale_items')
-    .delete()
-    .eq('sale_id', sale.id);
-
-  if (deleteError) throw deleteError;
-
-  // Insert updated items
-  const saleItemsData = sale.items.map(item => ({
-    id: item.id,
-    sale_id: sale.id,
-    description: item.description,
-    quantity: item.quantity,
-    unit_price: item.unitPrice,
-  }));
-
-  const { error: itemsError } = await supabase
-    .from('sale_items')
-    .insert(saleItemsData);
-
-  if (itemsError) throw itemsError;
-};
-
-export const getSales = async (): Promise<Sale[]> => {
-  const { data: sales, error: salesError } = await supabase
-    .from('sales')
+export const getCustomers = async (): Promise<Contact[]> => {
+  const { data, error } = await supabase
+    .from('contacts')
     .select('*')
-    .order('date', { ascending: false });
+    .eq('type', 'Customer')
+    .order('name');
 
-  if (salesError) throw salesError;
+  if (error) {
+    console.error('Error fetching customers:', error);
+    throw error;
+  }
 
-  const { data: items, error: itemsError } = await supabase
-    .from('sale_items')
-    .select('*');
-
-  if (itemsError) throw itemsError;
-
-  return sales.map(sale => ({
-    id: sale.id,
-    customer: sale.customer,
-    date: sale.date,
-    amount: sale.amount,
-    status: sale.status as Sale["status"],
-    category: sale.category,
-    notes: sale.notes,
-    tax: sale.tax_percentage > 0 ? {
-      percentage: sale.tax_percentage,
-      amount: sale.tax_amount,
-    } : undefined,
-    journalEntryId: sale.journal_entry_id,
-    items: items
-      .filter(item => item.sale_id === sale.id)
-      .map(item => ({
-        id: item.id,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unit_price,
-      })),
-  }));
+  return data || [];
 };
 
-export const deleteSale = async (id: string): Promise<void> => {
-  // Get sale to find journal entry ID
-  const { data: sale, error: saleError } = await supabase
-    .from('sales')
-    .select('journal_entry_id')
-    .eq('id', id)
-    .single();
+export const getSuppliers = async (): Promise<Contact[]> => {
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('type', 'Supplier')
+    .order('name');
 
-  if (saleError) throw saleError;
+  if (error) {
+    console.error('Error fetching suppliers:', error);
+    throw error;
+  }
 
-  // Delete sale (items will be deleted via cascade)
-  const { error: deleteError } = await supabase
-    .from('sales')
+  return data || [];
+};
+
+export const saveContact = async (contact: Omit<Contact, 'created_at' | 'updated_at'>): Promise<void> => {
+  const { error } = await supabase
+    .from('contacts')
+    .insert([contact]);
+
+  if (error) {
+    console.error('Error saving contact:', error);
+    throw error;
+  }
+};
+
+export const updateContact = async (contact: Contact): Promise<void> => {
+  const { error } = await supabase
+    .from('contacts')
+    .update({
+      name: contact.name,
+      email: contact.email,
+      phone: contact.phone,
+      type: contact.type,
+      balance: contact.balance,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', contact.id);
+
+  if (error) {
+    console.error('Error updating contact:', error);
+    throw error;
+  }
+};
+
+export const deleteContact = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('contacts')
     .delete()
     .eq('id', id);
 
-  if (deleteError) throw deleteError;
-
-  // Delete associated journal entry
-  if (sale.journal_entry_id) {
-    await deleteJournalEntry(sale.journal_entry_id);
+  if (error) {
+    console.error('Error deleting contact:', error);
+    throw error;
   }
 };
 
-// Purchase Operations
-export const savePurchase = async (purchase: Purchase): Promise<void> => {
-  // Create journal entry first
-  const journalEntryId = await createPurchaseJournalEntry(purchase);
-
-  // Save purchase
-  const { error: purchaseError } = await supabase
-    .from('purchases')
-    .insert({
-      id: purchase.id,
-      supplier: purchase.supplier,
-      date: purchase.date,
-      amount: purchase.amount,
-      status: purchase.status,
-      category: purchase.category,
-      notes: purchase.notes,
-      journal_entry_id: journalEntryId,
-    });
-
-  if (purchaseError) throw purchaseError;
-
-  // Save purchase items
-  const purchaseItemsData = purchase.items.map(item => ({
-    id: item.id,
-    purchase_id: purchase.id,
-    description: item.description,
-    quantity: item.quantity,
-    unit_price: item.unitPrice,
-  }));
-
-  const { error: itemsError } = await supabase
-    .from('purchase_items')
-    .insert(purchaseItemsData);
-
-  if (itemsError) throw itemsError;
-};
-
-export const updatePurchase = async (purchase: Purchase): Promise<void> => {
-  // Update purchase
-  const { error: purchaseError } = await supabase
-    .from('purchases')
-    .update({
-      supplier: purchase.supplier,
-      date: purchase.date,
-      amount: purchase.amount,
-      status: purchase.status,
-      category: purchase.category,
-      notes: purchase.notes,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', purchase.id);
-
-  if (purchaseError) throw purchaseError;
-
-  // Delete existing items
-  const { error: deleteError } = await supabase
-    .from('purchase_items')
-    .delete()
-    .eq('purchase_id', purchase.id);
-
-  if (deleteError) throw deleteError;
-
-  // Insert updated items
-  const purchaseItemsData = purchase.items.map(item => ({
-    id: item.id,
-    purchase_id: purchase.id,
-    description: item.description,
-    quantity: item.quantity,
-    unit_price: item.unitPrice,
-  }));
-
-  const { error: itemsError } = await supabase
-    .from('purchase_items')
-    .insert(purchaseItemsData);
-
-  if (itemsError) throw itemsError;
-};
-
-export const getPurchases = async (): Promise<Purchase[]> => {
-  const { data: purchases, error: purchasesError } = await supabase
-    .from('purchases')
-    .select('*')
-    .order('date', { ascending: false });
-
-  if (purchasesError) throw purchasesError;
-
-  const { data: items, error: itemsError } = await supabase
-    .from('purchase_items')
-    .select('*');
-
-  if (itemsError) throw itemsError;
-
-  return purchases.map(purchase => ({
-    id: purchase.id,
-    supplier: purchase.supplier,
-    date: purchase.date,
-    amount: purchase.amount,
-    status: purchase.status as Purchase["status"],
-    category: purchase.category,
-    notes: purchase.notes,
-    journalEntryId: purchase.journal_entry_id,
-    items: items
-      .filter(item => item.purchase_id === purchase.id)
-      .map(item => ({
-        id: item.id,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unit_price,
-      })),
-  }));
-};
-
-export const deletePurchase = async (id: string): Promise<void> => {
-  // Get purchase to find journal entry ID
-  const { data: purchase, error: purchaseError } = await supabase
-    .from('purchases')
-    .select('journal_entry_id')
-    .eq('id', id)
-    .single();
-
-  if (purchaseError) throw purchaseError;
-
-  // Delete purchase (items will be deleted via cascade)
-  const { error: deleteError } = await supabase
-    .from('purchases')
-    .delete()
-    .eq('id', id);
-
-  if (deleteError) throw deleteError;
-
-  // Delete associated journal entry
-  if (purchase.journal_entry_id) {
-    await deleteJournalEntry(purchase.journal_entry_id);
-  }
-};
-
-// Utility functions
 export const generateId = (prefix: string): string => {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substr(2, 5);
-  return `${prefix}-${timestamp}${random}`.toUpperCase();
+  return `${prefix}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
 };
 
 export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('id-ID', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'IDR',
   }).format(amount);
 };
 
-export const getAllCategoriesFromTransactions = (): string[] => {
-  // This will be implemented with real data later
-  return ["Office Supplies", "Equipment", "Software", "Marketing", "Travel"];
+export const getAllCategoriesFromTransactions = async (): Promise<string[]> => {
+  try {
+    // Fetch categories from sales
+    const { data: salesData, error: salesError } = await supabase
+      .from('sales')
+      .select('category');
+
+    if (salesError) {
+      console.error("Error fetching sales categories:", salesError);
+      throw salesError;
+    }
+
+    const salesCategories = salesData
+      .map(sale => sale.category)
+      .filter((category): category is string => Boolean(category)); // Filter out null or undefined
+
+    // Fetch categories from purchases
+    const { data: purchasesData, error: purchasesError } = await supabase
+      .from('purchases')
+      .select('category');
+
+    if (purchasesError) {
+      console.error("Error fetching purchases categories:", purchasesError);
+      throw purchasesError;
+    }
+
+    const purchasesCategories = purchasesData
+      .map(purchase => purchase.category)
+      .filter((category): category is string => Boolean(category)); // Filter out null or undefined
+
+    // Fetch categories from journal entries
+    const { data: journalEntriesData, error: journalEntriesError } = await supabase
+      .from('journal_entries')
+      .select('category');
+
+    if (journalEntriesError) {
+      console.error("Error fetching journal entries categories:", journalEntriesError);
+      throw journalEntriesError;
+    }
+
+    const journalEntriesCategories = journalEntriesData
+      .map(journalEntry => journalEntry.category)
+      .filter((category): category is string => Boolean(category)); // Filter out null or undefined
+
+    // Combine and remove duplicates
+    const allCategories = [...salesCategories, ...purchasesCategories, ...journalEntriesCategories];
+    const uniqueCategories = [...new Set(allCategories)];
+
+    return uniqueCategories;
+  } catch (error) {
+    console.error("Error fetching all categories:", error);
+    return [];
+  }
 };

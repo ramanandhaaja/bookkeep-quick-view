@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +29,7 @@ import {
 import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
+import SupplierSelect from "./SupplierSelect";
 
 interface EditPurchaseFormProps {
   open: boolean;
@@ -165,12 +165,10 @@ const EditPurchaseForm = ({ open, onClose, onSuccess, purchase }: EditPurchaseFo
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="supplier">Supplier Name</Label>
-                <Input
-                  id="supplier"
+                <SupplierSelect
                   value={supplier}
-                  onChange={(e) => setSupplier(e.target.value)}
-                  placeholder="Enter supplier name"
-                  required
+                  onValueChange={setSupplier}
+                  placeholder="Select or create supplier"
                 />
               </div>
 
