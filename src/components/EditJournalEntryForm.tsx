@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +16,7 @@ import {
   JournalEntry, 
   JournalLineItem, 
   updateJournalEntry, 
-  generateId,
-  getAllCategoriesFromTransactions
+  generateId
 } from "@/lib/supabaseStorage";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
@@ -37,7 +35,7 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
   const [category, setCategory] = useState(journalEntry.category || "");
   const [date, setDate] = useState(journalEntry.date);
   const [notes, setNotes] = useState(journalEntry.notes || "");
-  const [lineItems, setLineItems] = useState<JournalLineItem[]>(journalEntry.lineItems);
+  const [lineItems, setLineItems] = useState<JournalLineItem[]>(journalEntry.lineItems || []);
 
   useEffect(() => {
     if (journalEntry) {
@@ -46,7 +44,7 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
       setCategory(journalEntry.category || "");
       setDate(journalEntry.date);
       setNotes(journalEntry.notes || "");
-      setLineItems([...journalEntry.lineItems]);
+      setLineItems([...(journalEntry.lineItems || [])]);
     }
   }, [journalEntry]);
 
@@ -202,7 +200,7 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
                 <CategorySelect
                   value={category}
                   onValueChange={setCategory}
-                  categories={getAllCategoriesFromTransactions()}
+                  categories={[]}
                   placeholder="Select or create category"
                 />
               </div>

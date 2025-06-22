@@ -17,8 +17,7 @@ import {
   JournalEntry, 
   JournalLineItem, 
   saveJournalEntry, 
-  generateId,
-  getAllCategoriesFromTransactions
+  generateId
 } from "@/lib/supabaseStorage";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
@@ -206,7 +205,7 @@ const CreateJournalEntryForm = ({ open, onClose, onSuccess }: CreateJournalEntry
                 <CategorySelect
                   value={category}
                   onValueChange={setCategory}
-                  categories={getAllCategoriesFromTransactions()}
+                  categories={[]}
                   placeholder="Select or create category"
                 />
               </div>
