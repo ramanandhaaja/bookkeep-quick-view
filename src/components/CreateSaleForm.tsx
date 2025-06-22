@@ -25,12 +25,14 @@ import {
   saveSale, 
   generateId,
   formatCurrency,
-  getAllCategoriesFromTransactions
+  getAllCategoriesFromTransactions,
+  Item
 } from "@/lib/supabaseStorage";
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
 import CustomerSelect from "./CustomerSelect";
+import ItemSelect from "./ItemSelect";
 
 interface CreateSaleFormProps {
   open: boolean;
@@ -84,6 +86,16 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
     newItems[index] = {
       ...newItems[index],
       [field]: value,
+    };
+    setItems(newItems);
+  };
+
+  const handleItemSelect = (index: number, item: Item) => {
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      description: item.name,
+      unitPrice: item.unit_price,
     };
     setItems(newItems);
   };
@@ -275,16 +287,13 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
                   >
                     <div className="col-span-5">
                       <Label htmlFor={`item-${index}-description`}>
-                        Description
+                        Item
                       </Label>
-                      <Input
-                        id={`item-${index}-description`}
+                      <ItemSelect
                         value={item.description}
-                        onChange={(e) =>
-                          handleItemChange(index, "description", e.target.value)
-                        }
-                        placeholder="Item description"
-                        required
+                        onValueChange={(value) => handleItemChange(index, "description", value)}
+                        onItemSelect={(selectedItem) => handleItemSelect(index, selectedItem)}
+                        placeholder="Select or create item"
                       />
                     </div>
                     <div className="col-span-2">

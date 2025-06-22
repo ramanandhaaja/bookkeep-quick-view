@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,12 +25,14 @@ import {
   PurchaseItem, 
   savePurchase, 
   generateId,
-  getAllCategoriesFromTransactions
-} from "@/lib/storage";
+  getAllCategoriesFromTransactions,
+  Item
+} from "@/lib/supabaseStorage";
 import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
 import SupplierSelect from "./SupplierSelect";
+import ItemSelect from "./ItemSelect";
 
 interface CreatePurchaseFormProps {
   open: boolean;
@@ -47,6 +50,19 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
   const [items, setItems] = useState<PurchaseItem[]>([
     { id: generateId("ITM"), description: "", quantity: 1, unitPrice: 0 },
   ]);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categoryList = await getAllCategoriesFromTransactions();
+        setCategories(categoryList);
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      }
+    };
+    loadCategories();
+  }, []);
 
   const handleAddItem = () => {
     setItems([
@@ -72,13 +88,23 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
     setItems(newItems);
   };
 
+  const handleItemSelect = (index: number, item: Item) => {
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      description: item.name,
+      unitPrice: item.unit_price,
+    };
+    setItems(newItems);
+  };
+
   const calculateTotal = (): number => {
     return items.reduce((total, item) => {
       return total + item.quantity * item.unitPrice;
     }, 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!supplier) {
@@ -111,7 +137,7 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
     };
 
     try {
-      savePurchase(newPurchase);
+      await savePurchase(newPurchase);
       
       // Generate and save PDF
       const doc = generatePurchasePDF(newPurchase);
@@ -121,6 +147,14 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
         title: "Success",
         description: `Purchase ${newPurchase.id} created successfully`,
       });
+      
+      // Reset form
+      setSupplier("");
+      setCategory("");
+      setDate(new Date().toISOString().split("T")[0]);
+      setStatus("Pending");
+      setNotes("");
+      setItems([{ id: generateId("ITM"), description: "", quantity: 1, unitPrice: 0 }]);
       
       onSuccess();
       onClose();
@@ -161,7 +195,7 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
                 <CategorySelect
                   value={category}
                   onValueChange={setCategory}
-                  categories={getAllCategoriesFromTransactions()}
+                  categories={categories}
                   placeholder="Select or create category"
                 />
               </div>
@@ -213,16 +247,13 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
                   >
                     <div className="col-span-5">
                       <Label htmlFor={`item-${index}-description`}>
-                        Description
+                        Item
                       </Label>
-                      <Input
-                        id={`item-${index}-description`}
+                      <ItemSelect
                         value={item.description}
-                        onChange={(e) =>
-                          handleItemChange(index, "description", e.target.value)
-                        }
-                        placeholder="Item description"
-                        required
+                        onValueChange={(value) => handleItemChange(index, "description", value)}
+                        onItemSelect={(selectedItem) => handleItemSelect(index, selectedItem)}
+                        placeholder="Select or create item"
                       />
                     </div>
                     <div className="col-span-2">
