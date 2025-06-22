@@ -17,7 +17,15 @@ import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 import "./App.css";
 
-const queryClient = new QueryClient();
+// Create QueryClient outside of component to avoid recreation on every render
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   return (
@@ -38,8 +46,8 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <Toaster />
       </Router>
-      <Toaster />
     </QueryClientProvider>
   );
 }
