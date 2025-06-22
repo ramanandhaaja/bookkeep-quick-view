@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = "https://owppnnfcmalpomkerqku.supabase.co";
@@ -73,6 +72,26 @@ export interface Contact {
   phone?: string;
   type: 'Customer' | 'Supplier';
   balance: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  description?: string;
+  category_id?: string;
+  unit_price: number;
+  is_active: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -347,55 +366,131 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
+export const getCategories = async (): Promise<Category[]> => {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('is_active', true)
+    .order('name');
+
+  if (error) {
+    console.error('Error fetching categories:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const saveCategory = async (category: Omit<Category, 'created_at' | 'updated_at'>): Promise<void> => {
+  const { error } = await supabase
+    .from('categories')
+    .insert([category]);
+
+  if (error) {
+    console.error('Error saving category:', error);
+    throw error;
+  }
+};
+
+export const updateCategory = async (category: Category): Promise<void> => {
+  const { error } = await supabase
+    .from('categories')
+    .update({
+      name: category.name,
+      description: category.description,
+      is_active: category.is_active,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', category.id);
+
+  if (error) {
+    console.error('Error updating category:', error);
+    throw error;
+  }
+};
+
+export const deleteCategory = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('categories')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting category:', error);
+    throw error;
+  }
+};
+
+export const getItems = async (): Promise<Item[]> => {
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .eq('is_active', true)
+    .order('name');
+
+  if (error) {
+    console.error('Error fetching items:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const saveItem = async (item: Omit<Item, 'created_at' | 'updated_at'>): Promise<void> => {
+  const { error } = await supabase
+    .from('items')
+    .insert([item]);
+
+  if (error) {
+    console.error('Error saving item:', error);
+    throw error;
+  }
+};
+
+export const updateItem = async (item: Item): Promise<void> => {
+  const { error } = await supabase
+    .from('items')
+    .update({
+      name: item.name,
+      description: item.description,
+      category_id: item.category_id,
+      unit_price: item.unit_price,
+      is_active: item.is_active,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', item.id);
+
+  if (error) {
+    console.error('Error updating item:', error);
+    throw error;
+  }
+};
+
+export const deleteItem = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('items')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting item:', error);
+    throw error;
+  }
+};
+
 export const getAllCategoriesFromTransactions = async (): Promise<string[]> => {
   try {
-    // Fetch categories from sales
-    const { data: salesData, error: salesError } = await supabase
-      .from('sales')
-      .select('category');
+    const { data: categoriesData, error } = await supabase
+      .from('categories')
+      .select('name')
+      .eq('is_active', true);
 
-    if (salesError) {
-      console.error("Error fetching sales categories:", salesError);
-      throw salesError;
+    if (error) {
+      console.error("Error fetching categories:", error);
+      throw error;
     }
 
-    const salesCategories = salesData
-      .map(sale => sale.category)
-      .filter((category): category is string => Boolean(category)); // Filter out null or undefined
-
-    // Fetch categories from purchases
-    const { data: purchasesData, error: purchasesError } = await supabase
-      .from('purchases')
-      .select('category');
-
-    if (purchasesError) {
-      console.error("Error fetching purchases categories:", purchasesError);
-      throw purchasesError;
-    }
-
-    const purchasesCategories = purchasesData
-      .map(purchase => purchase.category)
-      .filter((category): category is string => Boolean(category)); // Filter out null or undefined
-
-    // Fetch categories from journal entries
-    const { data: journalEntriesData, error: journalEntriesError } = await supabase
-      .from('journal_entries')
-      .select('category');
-
-    if (journalEntriesError) {
-      console.error("Error fetching journal entries categories:", journalEntriesError);
-      throw journalEntriesError;
-    }
-
-    const journalEntriesCategories = journalEntriesData
-      .map(journalEntry => journalEntry.category)
-      .filter((category): category is string => Boolean(category)); // Filter out null or undefined
-
-    // Combine and remove duplicates
-    const allCategories = [...salesCategories, ...purchasesCategories, ...journalEntriesCategories];
-    const uniqueCategories = [...new Set(allCategories)];
-
-    return uniqueCategories;
+    return categoriesData?.map(cat => cat.name) || [];
   } catch (error) {
     console.error("Error fetching all categories:", error);
     return [];

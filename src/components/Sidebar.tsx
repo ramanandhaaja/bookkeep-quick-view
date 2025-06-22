@@ -1,71 +1,158 @@
 
-import { Link, useLocation } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  FileText, 
-  ClipboardList, 
-  Users, 
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Receipt,
+  FileText,
+  BookOpen,
+  Users,
   Settings,
   BarChart3,
-  BookOpen
+  ChevronDown,
+  ChevronRight,
+  Tags,
+  Package,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
-interface SidebarProps {
-  className?: string;
-}
-
-const Sidebar = ({ className }: SidebarProps) => {
+const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [expandedSections, setExpandedSections] = useState<string[]>([]);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev =>
+      prev.includes(section)
+        ? prev.filter(s => s !== section)
+        : [...prev, section]
+    );
+  };
+
+  const menuItems = [
+    {
+      title: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/dashboard",
+    },
+    {
+      title: "Sales & Revenue",
+      icon: ShoppingCart,
+      children: [
+        { title: "Sales", href: "/sales" },
+        { title: "Invoices", href: "/invoices" },
+      ],
+    },
+    {
+      title: "Purchases & Expenses",
+      icon: Receipt,
+      children: [
+        { title: "Purchases", href: "/purchases" },
+        { title: "Purchase Orders", href: "/purchase-orders" },
+      ],
+    },
+    {
+      title: "Accounting",
+      icon: BookOpen,
+      children: [
+        { title: "Journal Entries", href: "/journal-entries" },
+      ],
+    },
+    {
+      title: "Master Data",
+      icon: FileText,
+      children: [
+        { title: "Contacts", href: "/contacts" },
+        { title: "Categories", href: "/categories" },
+        { title: "Items", href: "/items" },
+      ],
+    },
+    {
+      title: "Reports",
+      icon: BarChart3,
+      href: "/reporting",
+    },
+    {
+      title: "Settings",
+      icon: Settings,
+      href: "/settings",
+    },
+  ];
+
+  const isActive = (href: string) => location.pathname === href;
+  const isParentActive = (children?: { href: string }[]) =>
+    children?.some(child => isActive(child.href));
 
   return (
-    <div className={cn("h-screen w-64 bg-sidebar p-4 flex flex-col border-r", className)}>
-      <div className="mb-8">
-        <h1 className="text-xl font-bold text-accounting-primary">BookKeep</h1>
-        <p className="text-xs text-muted-foreground">Simple Accounting</p>
+    <div className="h-screen w-64 border-r bg-card">
+      <div className="flex h-14 items-center border-b px-4">
+        <h2 className="text-lg font-semibold">Accounting System</h2>
       </div>
-      
-      <nav className="space-y-1 flex-1">
-        <SidebarItem to="/" icon={<LayoutDashboard size={20} />} text="Dashboard" active={location.pathname === "/"} />
-        <SidebarItem to="/sales" icon={<ArrowUpRight size={20} />} text="Sales" active={location.pathname === "/sales"} />
-        <SidebarItem to="/purchases" icon={<ArrowDownRight size={20} />} text="Purchases" active={location.pathname === "/purchases"} />
-        <SidebarItem to="/invoices" icon={<FileText size={20} />} text="Invoices" active={location.pathname === "/invoices"} />
-        <SidebarItem to="/purchase-orders" icon={<ClipboardList size={20} />} text="Purchase Orders" active={location.pathname === "/purchase-orders"} />
-        <SidebarItem to="/journal-entries" icon={<BookOpen size={20} />} text="Journal Entries" active={location.pathname === "/journal-entries"} />
-        <SidebarItem to="/contacts" icon={<Users size={20} />} text="Contacts" active={location.pathname === "/contacts"} />
-        <SidebarItem to="/reporting" icon={<BarChart3 size={20} />} text="Reporting" active={location.pathname === "/reporting"} />
-      </nav>
-      
-      <div className="mt-auto">
-        <SidebarItem to="/settings" icon={<Settings size={20} />} text="Settings" active={location.pathname === "/settings"} />
-      </div>
+      <ScrollArea className="flex-1">
+        <div className="space-y-2 p-2">
+          {menuItems.map((item) => {
+            const isExpanded = expandedSections.includes(item.title);
+            const hasChildren = item.children && item.children.length > 0;
+            const parentActive = hasChildren && isParentActive(item.children);
+
+            return (
+              <div key={item.title}>
+                <Button
+                  variant={
+                    (item.href && isActive(item.href)) || parentActive
+                      ? "secondary"
+                      : "ghost"
+                  }
+                  className={cn(
+                    "w-full justify-start",
+                    hasChildren && "pr-2"
+                  )}
+                  onClick={() => {
+                    if (hasChildren) {
+                      toggleSection(item.title);
+                    } else if (item.href) {
+                      navigate(item.href);
+                    }
+                  }}
+                >
+                  <item.icon className="mr-2 h-4 w-4" />
+                  <span className="flex-1 text-left">{item.title}</span>
+                  {hasChildren && (
+                    <div className="ml-auto">
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </div>
+                  )}
+                </Button>
+
+                {hasChildren && isExpanded && (
+                  <div className="ml-4 space-y-1 pt-1">
+                    {item.children?.map((child) => (
+                      <Button
+                        key={child.href}
+                        variant={isActive(child.href) ? "secondary" : "ghost"}
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => navigate(child.href)}
+                      >
+                        <span className="ml-2">{child.title}</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
     </div>
-  );
-};
-
-interface SidebarItemProps {
-  to: string;
-  icon: React.ReactNode;
-  text: string;
-  active?: boolean;
-}
-
-const SidebarItem = ({ to, icon, text, active }: SidebarItemProps) => {
-  return (
-    <Link
-      to={to}
-      className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-        active 
-          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
-          : "text-foreground/70 hover:bg-sidebar-accent/50"
-      )}
-    >
-      {icon}
-      <span>{text}</span>
-    </Link>
   );
 };
 

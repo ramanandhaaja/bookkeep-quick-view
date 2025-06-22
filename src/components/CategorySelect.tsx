@@ -1,7 +1,5 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect } from "react";
 import {
   Select,
   SelectContent,
@@ -9,100 +7,108 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { getCategories, saveCategory, generateId, Category } from "@/lib/supabaseStorage";
+import { useToast } from "@/hooks/use-toast";
 
 interface CategorySelectProps {
   value: string;
   onValueChange: (value: string) => void;
-  categories: string[];
+  categories?: string[]; // Keep for backward compatibility but won't be used
   placeholder?: string;
-  className?: string;
 }
 
-const CategorySelect = ({ 
-  value, 
-  onValueChange, 
-  categories, 
-  placeholder = "Select category",
-  className 
-}: CategorySelectProps) => {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+const CategorySelect = ({ value, onValueChange, placeholder = "Select category" }: CategorySelectProps) => {
+  const { toast } = useToast();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateCategory = () => {
-    if (newCategoryName.trim()) {
-      onValueChange(newCategoryName.trim());
-      setNewCategoryName("");
-      setIsCreateDialogOpen(false);
+  const loadCategories = async () => {
+    try {
+      const loadedCategories = await getCategories();
+      setCategories(loadedCategories);
+    } catch (error) {
+      console.error("Error loading categories:", error);
     }
   };
 
-  const handleSelectChange = (selectedValue: string) => {
-    if (selectedValue === "create-new") {
-      setIsCreateDialogOpen(true);
-    } else {
-      onValueChange(selectedValue);
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    setIsCreating(true);
+    try {
+      const newCategory: Omit<Category, 'created_at' | 'updated_at'> = {
+        id: generateId("CAT"),
+        name: newCategoryName.trim(),
+        is_active: true,
+      };
+
+      await saveCategory(newCategory);
+      await loadCategories();
+      onValueChange(newCategory.name);
+      setNewCategoryName("");
+      
+      toast({
+        title: "Success",
+        description: `Category "${newCategory.name}" created successfully`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create category",
+        variant: "destructive",
+      });
+      console.error("Error creating category:", error);
+    } finally {
+      setIsCreating(false);
     }
   };
 
   return (
-    <>
-      <Select value={value} onValueChange={handleSelectChange}>
-        <SelectTrigger className={className}>
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {categories.map((category) => (
-            <SelectItem key={category} value={category}>
-              {category}
-            </SelectItem>
-          ))}
-          <SelectItem value="create-new" className="text-primary">
-            <div className="flex items-center">
-              <Plus className="h-4 w-4 mr-2" />
-              Create new category
-            </div>
+    <Select value={value} onValueChange={onValueChange} open={isOpen} onOpenChange={setIsOpen}>
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {categories.map((category) => (
+          <SelectItem key={category.id} value={category.name}>
+            {category.name}
           </SelectItem>
-        </SelectContent>
-      </Select>
-
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Category</DialogTitle>
-            <DialogDescription>
-              Enter a name for the new category.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            placeholder="Category name"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleCreateCategory();
-              }
-            }}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
+        ))}
+        <div className="border-t mt-2 pt-2">
+          <div className="flex gap-2 p-2">
+            <Input
+              placeholder="New category name"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleCreateCategory();
+                }
+              }}
+              className="h-8"
+            />
+            <Button
+              size="sm"
+              onClick={handleCreateCategory}
+              disabled={!newCategoryName.trim() || isCreating}
+              className="h-8 px-2"
+            >
+              <Plus className="h-4 w-4" />
             </Button>
-            <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()}>
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          </div>
+        </div>
+      </SelectContent>
+    </Select>
   );
 };
 
