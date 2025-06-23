@@ -97,52 +97,152 @@ export interface Item {
 }
 
 export const getSales = async (): Promise<Sale[]> => {
-  const { data, error } = await supabase
+  const { data: salesData, error: salesError } = await supabase
     .from('sales')
     .select('*')
     .order('date', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching sales:', error);
-    throw error;
+  if (salesError) {
+    console.error('Error fetching sales:', salesError);
+    throw salesError;
   }
 
-  return data || [];
+  // Fetch items for each sale
+  const salesWithItems = await Promise.all(
+    (salesData || []).map(async (sale) => {
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('sale_items')
+        .select('*')
+        .eq('sale_id', sale.id);
+
+      if (itemsError) {
+        console.error('Error fetching sale items:', itemsError);
+        throw itemsError;
+      }
+
+      return {
+        ...sale,
+        items: (itemsData || []).map(item => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unit_price
+        })),
+        tax: sale.tax_percentage > 0 ? {
+          percentage: sale.tax_percentage,
+          amount: sale.tax_amount
+        } : undefined
+      };
+    })
+  );
+
+  return salesWithItems;
 };
 
 export const saveSale = async (sale: Sale): Promise<void> => {
-  const { error } = await supabase
+  // Save the main sale record
+  const { error: saleError } = await supabase
     .from('sales')
-    .insert([sale]);
+    .insert([{
+      id: sale.id,
+      customer: sale.customer,
+      date: sale.date,
+      amount: sale.amount,
+      status: sale.status,
+      notes: sale.notes,
+      tax_percentage: sale.tax?.percentage || 0,
+      tax_amount: sale.tax?.amount || 0,
+      category: sale.category,
+    }]);
 
-  if (error) {
-    console.error('Error saving sale:', error);
-    throw error;
+  if (saleError) {
+    console.error('Error saving sale:', saleError);
+    throw saleError;
+  }
+
+  // Save the sale items
+  const itemsToInsert = sale.items.map(item => ({
+    id: item.id,
+    sale_id: sale.id,
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unitPrice
+  }));
+
+  const { error: itemsError } = await supabase
+    .from('sale_items')
+    .insert(itemsToInsert);
+
+  if (itemsError) {
+    console.error('Error saving sale items:', itemsError);
+    throw itemsError;
   }
 };
 
 export const updateSale = async (sale: Sale): Promise<void> => {
-  const { error } = await supabase
+  // Update the main sale record
+  const { error: saleError } = await supabase
     .from('sales')
     .update({
       customer: sale.customer,
       date: sale.date,
       amount: sale.amount,
       status: sale.status,
-      items: sale.items,
       notes: sale.notes,
-      tax: sale.tax,
+      tax_percentage: sale.tax?.percentage || 0,
+      tax_amount: sale.tax?.amount || 0,
       category: sale.category,
     })
     .eq('id', sale.id);
 
-  if (error) {
-    console.error('Error updating sale:', error);
-    throw error;
+  if (saleError) {
+    console.error('Error updating sale:', saleError);
+    throw saleError;
+  }
+
+  // Delete existing items and insert new ones
+  const { error: deleteError } = await supabase
+    .from('sale_items')
+    .delete()
+    .eq('sale_id', sale.id);
+
+  if (deleteError) {
+    console.error('Error deleting sale items:', deleteError);
+    throw deleteError;
+  }
+
+  // Insert updated items
+  const itemsToInsert = sale.items.map(item => ({
+    id: item.id,
+    sale_id: sale.id,
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unitPrice
+  }));
+
+  const { error: itemsError } = await supabase
+    .from('sale_items')
+    .insert(itemsToInsert);
+
+  if (itemsError) {
+    console.error('Error saving sale items:', itemsError);
+    throw itemsError;
   }
 };
 
 export const deleteSale = async (id: string): Promise<void> => {
+  // Delete sale items first
+  const { error: itemsError } = await supabase
+    .from('sale_items')
+    .delete()
+    .eq('sale_id', id);
+
+  if (itemsError) {
+    console.error('Error deleting sale items:', itemsError);
+    throw itemsError;
+  }
+
+  // Delete the main sale record
   const { error } = await supabase
     .from('sales')
     .delete()
@@ -155,52 +255,147 @@ export const deleteSale = async (id: string): Promise<void> => {
 };
 
 export const getPurchases = async (): Promise<Purchase[]> => {
-  const { data, error } = await supabase
+  const { data: purchasesData, error: purchasesError } = await supabase
     .from('purchases')
     .select('*')
     .order('date', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching purchases:', error);
-    throw error;
+  if (purchasesError) {
+    console.error('Error fetching purchases:', purchasesError);
+    throw purchasesError;
   }
 
-  return data || [];
+  // Fetch items for each purchase
+  const purchasesWithItems = await Promise.all(
+    (purchasesData || []).map(async (purchase) => {
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('purchase_items')
+        .select('*')
+        .eq('purchase_id', purchase.id);
+
+      if (itemsError) {
+        console.error('Error fetching purchase items:', itemsError);
+        throw itemsError;
+      }
+
+      return {
+        ...purchase,
+        items: (itemsData || []).map(item => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unit_price
+        })),
+        journalEntryId: purchase.journal_entry_id
+      };
+    })
+  );
+
+  return purchasesWithItems;
 };
 
 export const savePurchase = async (purchase: Purchase): Promise<void> => {
-  const { error } = await supabase
+  // Save the main purchase record
+  const { error: purchaseError } = await supabase
     .from('purchases')
-    .insert([purchase]);
+    .insert([{
+      id: purchase.id,
+      supplier: purchase.supplier,
+      date: purchase.date,
+      amount: purchase.amount,
+      status: purchase.status,
+      notes: purchase.notes,
+      category: purchase.category,
+      journal_entry_id: purchase.journalEntryId,
+    }]);
 
-  if (error) {
-    console.error('Error saving purchase:', error);
-    throw error;
+  if (purchaseError) {
+    console.error('Error saving purchase:', purchaseError);
+    throw purchaseError;
+  }
+
+  // Save the purchase items
+  const itemsToInsert = purchase.items.map(item => ({
+    id: item.id,
+    purchase_id: purchase.id,
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unitPrice
+  }));
+
+  const { error: itemsError } = await supabase
+    .from('purchase_items')
+    .insert(itemsToInsert);
+
+  if (itemsError) {
+    console.error('Error saving purchase items:', itemsError);
+    throw itemsError;
   }
 };
 
 export const updatePurchase = async (purchase: Purchase): Promise<void> => {
-  const { error } = await supabase
+  // Update the main purchase record
+  const { error: purchaseError } = await supabase
     .from('purchases')
     .update({
       supplier: purchase.supplier,
       date: purchase.date,
       amount: purchase.amount,
       status: purchase.status,
-      items: purchase.items,
       notes: purchase.notes,
       category: purchase.category,
-      journalEntryId: purchase.journalEntryId,
+      journal_entry_id: purchase.journalEntryId,
     })
     .eq('id', purchase.id);
 
-  if (error) {
-    console.error('Error updating purchase:', error);
-    throw error;
+  if (purchaseError) {
+    console.error('Error updating purchase:', purchaseError);
+    throw purchaseError;
+  }
+
+  // Delete existing items and insert new ones
+  const { error: deleteError } = await supabase
+    .from('purchase_items')
+    .delete()
+    .eq('purchase_id', purchase.id);
+
+  if (deleteError) {
+    console.error('Error deleting purchase items:', deleteError);
+    throw deleteError;
+  }
+
+  // Insert updated items
+  const itemsToInsert = purchase.items.map(item => ({
+    id: item.id,
+    purchase_id: purchase.id,
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unitPrice
+  }));
+
+  const { error: itemsError } = await supabase
+    .from('purchase_items')
+    .insert(itemsToInsert);
+
+  if (itemsError) {
+    console.error('Error saving purchase items:', itemsError);
+    throw itemsError;
   }
 };
 
 export const deletePurchase = async (id: string): Promise<void> => {
+  // Delete purchase items first
+  const { error: itemsError } = await supabase
+    .from('purchase_items')
+    .delete()
+    .eq('purchase_id', id);
+
+  if (itemsError) {
+    console.error('Error deleting purchase items:', itemsError);
+    throw itemsError;
+  }
+
+  // Delete the main purchase record
   const { error } = await supabase
     .from('purchases')
     .delete()
