@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +27,6 @@ import {
   getAllCategoriesFromTransactions,
   Item
 } from "@/lib/supabaseStorage";
-import { generatePurchasePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
 import SupplierSelect from "./SupplierSelect";
@@ -138,10 +136,6 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
 
     try {
       await savePurchase(newPurchase);
-      
-      // Generate and save PDF
-      const doc = generatePurchasePDF(newPurchase);
-      savePDF(doc, `purchase_${newPurchase.id}.pdf`);
       
       toast({
         title: "Success",

@@ -4,75 +4,153 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Download, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { getSales, getPurchases, getJournalEntries, formatCurrency } from "@/lib/supabaseStorage";
+import { generateReportPDF, savePDF } from "@/lib/reportGenerator";
 import { useToast } from "@/hooks/use-toast";
+import DateRangePicker from "@/components/DateRangePicker";
 
 const Reporting = () => {
   const { toast } = useToast();
   const [sales, setSales] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
+  const [dateRange, setDateRange] = useState({
+    from: new Date(new Date().getFullYear(), 0, 1), // Start of current year
+    to: new Date() // Today
+  });
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [netProfit, setNetProfit] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const loadReportData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load data from Supabase
+      const [loadedSales, loadedPurchases, loadedJournalEntries] = await Promise.all([
+        getSales(),
+        getPurchases(),
+        getJournalEntries()
+      ]);
+      
+      setSales(loadedSales);
+      setPurchases(loadedPurchases);
+      setJournalEntries(loadedJournalEntries);
+
+      // Filter data by date range
+      const filteredSales = loadedSales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        return saleDate >= dateRange.from && saleDate <= dateRange.to;
+      });
+
+      const filteredPurchases = loadedPurchases.filter(purchase => {
+        const purchaseDate = new Date(purchase.date);
+        return purchaseDate >= dateRange.from && purchaseDate <= dateRange.to;
+      });
+
+      const filteredJournalEntries = loadedJournalEntries.filter(entry => {
+        const entryDate = new Date(entry.date);
+        return entryDate >= dateRange.from && entryDate <= dateRange.to;
+      });
+
+      // Calculate totals from filtered data
+      const revenue = filteredSales
+        .filter(sale => sale.status === "Paid")
+        .reduce((sum, sale) => sum + sale.amount, 0);
+      
+      const expenses = filteredPurchases
+        .filter(purchase => purchase.status === "Received")
+        .reduce((sum, purchase) => sum + purchase.amount, 0);
+      
+      const journalRevenue = filteredJournalEntries
+        .reduce((sum, entry) => sum + entry.totalCredit, 0);
+      
+      const journalExpenses = filteredJournalEntries
+        .reduce((sum, entry) => sum + entry.totalDebit, 0);
+      
+      const totalRev = revenue + journalRevenue;
+      const totalExp = expenses + journalExpenses;
+      
+      setTotalRevenue(totalRev);
+      setTotalExpenses(totalExp);
+      setNetProfit(totalRev - totalExp);
+    } catch (error) {
+      console.error("Error loading report data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load report data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadReportData = async () => {
-      try {
-        setLoading(true);
-        
-        // Load data from Supabase
-        const [loadedSales, loadedPurchases, loadedJournalEntries] = await Promise.all([
-          getSales(),
-          getPurchases(),
-          getJournalEntries()
-        ]);
-        
-        setSales(loadedSales);
-        setPurchases(loadedPurchases);
-        setJournalEntries(loadedJournalEntries);
-
-        // Calculate totals from sales
-        const revenue = loadedSales
-          .filter(sale => sale.status === "Paid")
-          .reduce((sum, sale) => sum + sale.amount, 0);
-        
-        // Calculate expenses from purchases
-        const expenses = loadedPurchases
-          .filter(purchase => purchase.status === "Received")
-          .reduce((sum, purchase) => sum + purchase.amount, 0);
-        
-        // Add manual accounting entries (debits are expenses, credits are revenue)
-        const journalRevenue = loadedJournalEntries
-          .reduce((sum, entry) => sum + entry.totalCredit, 0);
-        
-        const journalExpenses = loadedJournalEntries
-          .reduce((sum, entry) => sum + entry.totalDebit, 0);
-        
-        const totalRev = revenue + journalRevenue;
-        const totalExp = expenses + journalExpenses;
-        
-        setTotalRevenue(totalRev);
-        setTotalExpenses(totalExp);
-        setNetProfit(totalRev - totalExp);
-      } catch (error) {
-        console.error("Error loading report data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load report data",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadReportData();
-  }, [toast]);
+  }, [dateRange]);
 
-  const salesByMonth = sales.reduce((acc, sale) => {
+  const handleExportPDF = () => {
+    try {
+      // Filter data by date range
+      const filteredSales = sales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        return saleDate >= dateRange.from && saleDate <= dateRange.to;
+      });
+
+      const filteredPurchases = purchases.filter(purchase => {
+        const purchaseDate = new Date(purchase.date);
+        return purchaseDate >= dateRange.from && purchaseDate <= dateRange.to;
+      });
+
+      const filteredJournalEntries = journalEntries.filter(entry => {
+        const entryDate = new Date(entry.date);
+        return entryDate >= dateRange.from && entryDate <= dateRange.to;
+      });
+
+      const doc = generateReportPDF({
+        sales: filteredSales,
+        purchases: filteredPurchases,
+        journalEntries: filteredJournalEntries,
+        dateRange
+      });
+      
+      const filename = `financial_report_${dateRange.from.toISOString().split('T')[0]}_to_${dateRange.to.toISOString().split('T')[0]}.pdf`;
+      savePDF(doc, filename);
+      
+      toast({
+        title: "Success",
+        description: "Report exported successfully",
+      });
+    } catch (error) {
+      console.error("Error exporting report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to export report",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter data by date range for display
+  const filteredSales = sales.filter(sale => {
+    const saleDate = new Date(sale.date);
+    return saleDate >= dateRange.from && saleDate <= dateRange.to;
+  });
+
+  const filteredPurchases = purchases.filter(purchase => {
+    const purchaseDate = new Date(purchase.date);
+    return purchaseDate >= dateRange.from && purchaseDate <= dateRange.to;
+  });
+
+  const filteredJournalEntries = journalEntries.filter(entry => {
+    const entryDate = new Date(entry.date);
+    return entryDate >= dateRange.from && entryDate <= dateRange.to;
+  });
+
+  const salesByMonth = filteredSales.reduce((acc, sale) => {
     if (sale.status === "Paid") {
       const month = new Date(sale.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
       acc[month] = (acc[month] || 0) + sale.amount;
@@ -80,7 +158,7 @@ const Reporting = () => {
     return acc;
   }, {});
 
-  const purchasesByMonth = purchases.reduce((acc, purchase) => {
+  const purchasesByMonth = filteredPurchases.reduce((acc, purchase) => {
     if (purchase.status === "Received") {
       const month = new Date(purchase.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
       acc[month] = (acc[month] || 0) + purchase.amount;
@@ -88,8 +166,7 @@ const Reporting = () => {
     return acc;
   }, {});
 
-  // Add journal entries by month
-  const journalByMonth = journalEntries.reduce((acc, entry) => {
+  const journalByMonth = filteredJournalEntries.reduce((acc, entry) => {
     const month = new Date(entry.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
     if (!acc[month]) {
       acc[month] = { revenue: 0, expenses: 0 };
@@ -122,17 +199,15 @@ const Reporting = () => {
     >
       <div className="flex justify-between items-center mb-6">
         <div className="flex gap-4 items-center">
-          <Button variant="outline" size="sm">
-            <Calendar className="h-4 w-4 mr-2" /> Date Range
-          </Button>
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportPDF}>
             <Download className="h-4 w-4 mr-2" /> Export PDF
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" /> Export Excel
           </Button>
         </div>
       </div>
