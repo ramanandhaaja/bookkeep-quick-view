@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +20,7 @@ import {
 } from "@/lib/supabaseStorage";
 import { useToast } from "@/hooks/use-toast";
 import CategorySelect from "./CategorySelect";
+import AccountSelect from "./AccountSelect";
 
 interface CreateJournalEntryFormProps {
   open: boolean;
@@ -232,14 +232,12 @@ const CreateJournalEntryForm = ({ open, onClose, onSuccess }: CreateJournalEntry
                   >
                     <div className="col-span-3">
                       <Label htmlFor={`account-${index}`}>Account</Label>
-                      <Input
-                        id={`account-${index}`}
+                      <AccountSelect
                         value={item.account}
-                        onChange={(e) =>
-                          updateLineItem(index, "account", e.target.value)
+                        onValueChange={(value) =>
+                          updateLineItem(index, "account", value)
                         }
-                        placeholder="Account name"
-                        required
+                        placeholder="Select or create account"
                       />
                     </div>
                     <div className="col-span-4">

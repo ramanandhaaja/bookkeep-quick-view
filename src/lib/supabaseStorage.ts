@@ -408,32 +408,90 @@ export const deletePurchase = async (id: string): Promise<void> => {
 };
 
 export const getJournalEntries = async (): Promise<JournalEntry[]> => {
-  const { data, error } = await supabase
+  const { data: entriesData, error: entriesError } = await supabase
     .from('journal_entries')
     .select('*')
     .order('date', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching journal entries:', error);
-    throw error;
+  if (entriesError) {
+    console.error('Error fetching journal entries:', entriesError);
+    throw entriesError;
   }
 
-  return data || [];
+  // Fetch line items for each journal entry
+  const entriesWithLineItems = await Promise.all(
+    (entriesData || []).map(async (entry) => {
+      const { data: lineItemsData, error: lineItemsError } = await supabase
+        .from('journal_line_items')
+        .select('*')
+        .eq('journal_entry_id', entry.id);
+
+      if (lineItemsError) {
+        console.error('Error fetching journal line items:', lineItemsError);
+        throw lineItemsError;
+      }
+
+      return {
+        ...entry,
+        lineItems: (lineItemsData || []).map(item => ({
+          id: item.id,
+          account: item.account,
+          description: item.description,
+          debit: item.debit,
+          credit: item.credit
+        }))
+      };
+    })
+  );
+
+  return entriesWithLineItems;
 };
 
 export const saveJournalEntry = async (entry: JournalEntry): Promise<void> => {
-  const { error } = await supabase
+  // Save the main journal entry record without lineItems
+  const { error: entryError } = await supabase
     .from('journal_entries')
-    .insert([entry]);
+    .insert([{
+      id: entry.id,
+      date: entry.date,
+      reference: entry.reference,
+      description: entry.description,
+      category: entry.category,
+      totalDebit: entry.totalDebit,
+      totalCredit: entry.totalCredit,
+      notes: entry.notes,
+    }]);
 
-  if (error) {
-    console.error('Error saving journal entry:', error);
-    throw error;
+  if (entryError) {
+    console.error('Error saving journal entry:', entryError);
+    throw entryError;
+  }
+
+  // Save the journal line items separately
+  if (entry.lineItems && entry.lineItems.length > 0) {
+    const lineItemsToInsert = entry.lineItems.map(item => ({
+      id: item.id,
+      journal_entry_id: entry.id,
+      account: item.account,
+      description: item.description,
+      debit: item.debit,
+      credit: item.credit
+    }));
+
+    const { error: lineItemsError } = await supabase
+      .from('journal_line_items')
+      .insert(lineItemsToInsert);
+
+    if (lineItemsError) {
+      console.error('Error saving journal line items:', lineItemsError);
+      throw lineItemsError;
+    }
   }
 };
 
 export const updateJournalEntry = async (entry: JournalEntry): Promise<void> => {
-  const { error } = await supabase
+  // Update the main journal entry record
+  const { error: entryError } = await supabase
     .from('journal_entries')
     .update({
       date: entry.date,
@@ -446,9 +504,41 @@ export const updateJournalEntry = async (entry: JournalEntry): Promise<void> => 
     })
     .eq('id', entry.id);
 
-  if (error) {
-    console.error('Error updating journal entry:', error);
-    throw error;
+  if (entryError) {
+    console.error('Error updating journal entry:', entryError);
+    throw entryError;
+  }
+
+  // Delete existing line items and insert new ones
+  const { error: deleteError } = await supabase
+    .from('journal_line_items')
+    .delete()
+    .eq('journal_entry_id', entry.id);
+
+  if (deleteError) {
+    console.error('Error deleting journal line items:', deleteError);
+    throw deleteError;
+  }
+
+  // Insert updated line items
+  if (entry.lineItems && entry.lineItems.length > 0) {
+    const lineItemsToInsert = entry.lineItems.map(item => ({
+      id: item.id,
+      journal_entry_id: entry.id,
+      account: item.account,
+      description: item.description,
+      debit: item.debit,
+      credit: item.credit
+    }));
+
+    const { error: lineItemsError } = await supabase
+      .from('journal_line_items')
+      .insert(lineItemsToInsert);
+
+    if (lineItemsError) {
+      console.error('Error saving journal line items:', lineItemsError);
+      throw lineItemsError;
+    }
   }
 };
 
@@ -689,5 +779,45 @@ export const getAllCategoriesFromTransactions = async (): Promise<string[]> => {
   } catch (error) {
     console.error("Error fetching all categories:", error);
     return [];
+  }
+};
+
+export const getAccountNames = async (): Promise<string[]> => {
+  try {
+    const { data: accountsData, error } = await supabase
+      .from('chart_of_accounts')
+      .select('account_name')
+      .eq('is_active', true)
+      .order('account_name');
+
+    if (error) {
+      console.error("Error fetching account names:", error);
+      throw error;
+    }
+
+    return accountsData?.map(acc => acc.account_name) || [];
+  } catch (error) {
+    console.error("Error fetching account names:", error);
+    return [];
+  }
+};
+
+export const saveAccount = async (accountName: string): Promise<void> => {
+  const newAccount = {
+    id: generateId("ACC"),
+    account_code: `${Date.now()}`, // Simple code generation
+    account_name: accountName,
+    account_type: "Asset", // Default type
+    normal_balance: "Debit", // Default balance
+    is_active: true
+  };
+
+  const { error } = await supabase
+    .from('chart_of_accounts')
+    .insert([newAccount]);
+
+  if (error) {
+    console.error('Error saving account:', error);
+    throw error;
   }
 };
