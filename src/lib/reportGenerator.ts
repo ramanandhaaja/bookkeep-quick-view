@@ -3,6 +3,16 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Sale, Purchase, JournalEntry, formatCurrency } from './supabaseStorage';
 
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable?: {
+      finalY: number;
+    };
+  }
+}
+
 interface ReportData {
   sales: Sale[];
   purchases: Purchase[];
@@ -57,7 +67,7 @@ export const generateReportPDF = (data: ReportData) => {
       formatCurrency(sale.amount)
     ]);
 
-    (doc as any).autoTable({
+    doc.autoTable({
       head: [['ID', 'Customer', 'Date', 'Status', 'Amount']],
       body: salesData,
       startY: 115,
@@ -68,7 +78,7 @@ export const generateReportPDF = (data: ReportData) => {
 
   // Purchases table
   if (purchases.length > 0) {
-    const lastY = (doc as any).lastAutoTable?.finalY || 140;
+    const lastY = doc.lastAutoTable?.finalY || 140;
     doc.setFontSize(14);
     doc.text('Purchases', 20, lastY + 20);
     
@@ -80,7 +90,7 @@ export const generateReportPDF = (data: ReportData) => {
       formatCurrency(purchase.amount)
     ]);
 
-    (doc as any).autoTable({
+    doc.autoTable({
       head: [['ID', 'Supplier', 'Date', 'Status', 'Amount']],
       body: purchasesData,
       startY: lastY + 25,
@@ -91,7 +101,7 @@ export const generateReportPDF = (data: ReportData) => {
 
   // Journal entries table
   if (journalEntries.length > 0) {
-    const lastY = (doc as any).lastAutoTable?.finalY || 160;
+    const lastY = doc.lastAutoTable?.finalY || 160;
     doc.setFontSize(14);
     doc.text('Journal Entries', 20, lastY + 20);
     
@@ -103,7 +113,7 @@ export const generateReportPDF = (data: ReportData) => {
       formatCurrency(entry.totalCredit)
     ]);
 
-    (doc as any).autoTable({
+    doc.autoTable({
       head: [['ID', 'Description', 'Date', 'Debit', 'Credit']],
       body: journalData,
       startY: lastY + 25,
