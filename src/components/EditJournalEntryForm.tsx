@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Plus } from "lucide-react";
 import { 
   JournalEntry, 
   JournalLineItem, 
@@ -35,7 +35,7 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
   const [category, setCategory] = useState(journalEntry.category || "");
   const [date, setDate] = useState(journalEntry.date);
   const [notes, setNotes] = useState(journalEntry.notes || "");
-  const [lineItems, setLineItems] = useState<JournalLineItem[]>(journalEntry.lineItems || []);
+  const [lineItems, setLineItems] = useState<JournalLineItem[]>([]);
 
   useEffect(() => {
     if (journalEntry) {
@@ -44,22 +44,24 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
       setCategory(journalEntry.category || "");
       setDate(journalEntry.date);
       setNotes(journalEntry.notes || "");
-      setLineItems([...(journalEntry.lineItems || [])]);
+      
+      // Ensure exactly 2 line items
+      const existingItems = journalEntry.lineItems || [];
+      if (existingItems.length >= 2) {
+        setLineItems([existingItems[0], existingItems[1]]);
+      } else if (existingItems.length === 1) {
+        setLineItems([
+          existingItems[0],
+          { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 }
+        ]);
+      } else {
+        setLineItems([
+          { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 },
+          { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 }
+        ]);
+      }
     }
   }, [journalEntry]);
-
-  const handleAddLineItem = () => {
-    setLineItems([
-      ...lineItems,
-      { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 },
-    ]);
-  };
-
-  const handleRemoveLineItem = (index: number) => {
-    if (lineItems.length > 2) {
-      setLineItems(lineItems.filter((_, i) => i !== index));
-    }
-  };
 
   const updateLineItem = (
     index: number,
@@ -68,10 +70,22 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
   ) => {
     const newLineItems = [...lineItems];
     if (field === 'debit' || field === 'credit') {
+      const numValue = typeof value === 'string' ? parseFloat(value) || 0 : value;
       newLineItems[index] = {
         ...newLineItems[index],
-        [field]: typeof value === 'string' ? parseFloat(value) || 0 : value,
+        [field]: numValue,
       };
+      
+      // Auto-balance: when one item has debit, the other should have credit
+      if (numValue > 0) {
+        const otherIndex = index === 0 ? 1 : 0;
+        const oppositeField = field === 'debit' ? 'credit' : 'debit';
+        newLineItems[otherIndex] = {
+          ...newLineItems[otherIndex],
+          [oppositeField]: numValue,
+          [field]: 0,
+        };
+      }
     } else {
       newLineItems[index] = {
         ...newLineItems[index],
@@ -89,7 +103,7 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
 
   const isBalanced = () => {
     const { totalDebit, totalCredit } = calculateTotals();
-    return Math.abs(totalDebit - totalCredit) < 0.01; // Allow for small rounding differences
+    return Math.abs(totalDebit - totalCredit) < 0.01;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,7 +179,7 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
         <DialogHeader>
           <DialogTitle>Edit Journal Entry</DialogTitle>
           <DialogDescription>
-            Update journal entry with balanced debits and credits
+            Update journal entry with balanced debits and credits (2 accounts only)
           </DialogDescription>
         </DialogHeader>
 
@@ -218,17 +232,7 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
             </div>
 
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <Label>Line Items</Label>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleAddLineItem}
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Add Line
-                </Button>
-              </div>
+              <Label>Journal Entry Items (2 accounts required)</Label>
 
               <div className="space-y-3">
                 {lineItems.map((item, index) => (
@@ -291,15 +295,9 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
                       />
                     </div>
                     <div className="col-span-1 flex justify-center">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveLineItem(index)}
-                        disabled={lineItems.length <= 2}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <div className="text-sm text-muted-foreground">
+                        {index === 0 ? "Dr." : "Cr."}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -309,11 +307,11 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
                 <div className="flex gap-6">
                   <div>
                     <span className="text-sm font-medium">Total Debits: </span>
-                    <span className="font-mono">${totalDebit.toFixed(2)}</span>
+                    <span className="font-mono">{totalDebit.toFixed(2)}</span>
                   </div>
                   <div>
                     <span className="text-sm font-medium">Total Credits: </span>
-                    <span className="font-mono">${totalCredit.toFixed(2)}</span>
+                    <span className="font-mono">{totalCredit.toFixed(2)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
