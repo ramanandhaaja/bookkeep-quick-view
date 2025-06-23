@@ -457,8 +457,8 @@ export const saveJournalEntry = async (entry: JournalEntry): Promise<void> => {
       reference: entry.reference,
       description: entry.description,
       category: entry.category,
-      totalDebit: entry.totalDebit,
-      totalCredit: entry.totalCredit,
+      total_debit: entry.totalDebit,
+      total_credit: entry.totalCredit,
       notes: entry.notes,
     }]);
 
@@ -498,8 +498,8 @@ export const updateJournalEntry = async (entry: JournalEntry): Promise<void> => 
       reference: entry.reference,
       description: entry.description,
       category: entry.category,
-      totalDebit: entry.totalDebit,
-      totalCredit: entry.totalCredit,
+      total_debit: entry.totalDebit,
+      total_credit: entry.totalCredit,
       notes: entry.notes,
     })
     .eq('id', entry.id);
