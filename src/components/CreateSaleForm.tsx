@@ -30,6 +30,7 @@ import {
 } from "@/lib/supabaseStorage";
 import { generateSalePDF, savePDF } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import CategorySelect from "./CategorySelect";
 import CustomerSelect from "./CustomerSelect";
 import ItemSelect from "./ItemSelect";
