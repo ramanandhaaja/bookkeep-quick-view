@@ -217,7 +217,7 @@ export const updateSale = async (sale: Sale): Promise<void> => {
     sale_id: sale.id,
     description: item.description,
     quantity: item.quantity,
-    unit_price: item.unitPrice
+    unitPrice: item.unitPrice
   }));
 
   const { error: itemsError } = await supabase
@@ -433,12 +433,14 @@ export const getJournalEntries = async (): Promise<JournalEntry[]> => {
 
       return {
         ...entry,
+        totalDebit: Number(entry.total_debit) || 0,
+        totalCredit: Number(entry.total_credit) || 0,
         lineItems: (lineItemsData || []).map(item => ({
           id: item.id,
           account: item.account,
           description: item.description,
-          debit: item.debit,
-          credit: item.credit
+          debit: Number(item.debit) || 0,
+          credit: Number(item.credit) || 0
         }))
       };
     })
@@ -457,8 +459,8 @@ export const saveJournalEntry = async (entry: JournalEntry): Promise<void> => {
       reference: entry.reference,
       description: entry.description,
       category: entry.category,
-      total_debit: entry.totalDebit,
-      total_credit: entry.totalCredit,
+      total_debit: Number(entry.totalDebit) || 0,
+      total_credit: Number(entry.totalCredit) || 0,
       notes: entry.notes,
     }]);
 
@@ -474,8 +476,8 @@ export const saveJournalEntry = async (entry: JournalEntry): Promise<void> => {
       journal_entry_id: entry.id,
       account: item.account,
       description: item.description,
-      debit: item.debit,
-      credit: item.credit
+      debit: Number(item.debit) || 0,
+      credit: Number(item.credit) || 0
     }));
 
     const { error: lineItemsError } = await supabase
@@ -498,8 +500,8 @@ export const updateJournalEntry = async (entry: JournalEntry): Promise<void> => 
       reference: entry.reference,
       description: entry.description,
       category: entry.category,
-      total_debit: entry.totalDebit,
-      total_credit: entry.totalCredit,
+      total_debit: Number(entry.totalDebit) || 0,
+      total_credit: Number(entry.totalCredit) || 0,
       notes: entry.notes,
     })
     .eq('id', entry.id);
@@ -527,8 +529,8 @@ export const updateJournalEntry = async (entry: JournalEntry): Promise<void> => 
       journal_entry_id: entry.id,
       account: item.account,
       description: item.description,
-      debit: item.debit,
-      credit: item.credit
+      debit: Number(item.debit) || 0,
+      credit: Number(item.credit) || 0
     }));
 
     const { error: lineItemsError } = await supabase

@@ -45,13 +45,28 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
       setDate(journalEntry.date);
       setNotes(journalEntry.notes || "");
       
-      // Ensure exactly 2 line items
+      // Ensure exactly 2 line items with proper number conversion
       const existingItems = journalEntry.lineItems || [];
       if (existingItems.length >= 2) {
-        setLineItems([existingItems[0], existingItems[1]]);
+        setLineItems([
+          {
+            ...existingItems[0],
+            debit: Number(existingItems[0].debit) || 0,
+            credit: Number(existingItems[0].credit) || 0
+          },
+          {
+            ...existingItems[1],
+            debit: Number(existingItems[1].debit) || 0,
+            credit: Number(existingItems[1].credit) || 0
+          }
+        ]);
       } else if (existingItems.length === 1) {
         setLineItems([
-          existingItems[0],
+          {
+            ...existingItems[0],
+            debit: Number(existingItems[0].debit) || 0,
+            credit: Number(existingItems[0].credit) || 0
+          },
           { id: generateId("JLI"), account: "", description: "", debit: 0, credit: 0 }
         ]);
       } else {
@@ -70,7 +85,7 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
   ) => {
     const newLineItems = [...lineItems];
     if (field === 'debit' || field === 'credit') {
-      const numValue = typeof value === 'string' ? parseFloat(value) || 0 : value;
+      const numValue = typeof value === 'string' ? (parseFloat(value) || 0) : (Number(value) || 0);
       newLineItems[index] = {
         ...newLineItems[index],
         [field]: numValue,
@@ -96,8 +111,8 @@ const EditJournalEntryForm = ({ open, onClose, onSuccess, journalEntry }: EditJo
   };
 
   const calculateTotals = () => {
-    const totalDebit = lineItems.reduce((sum, item) => sum + item.debit, 0);
-    const totalCredit = lineItems.reduce((sum, item) => sum + item.credit, 0);
+    const totalDebit = lineItems.reduce((sum, item) => sum + (Number(item.debit) || 0), 0);
+    const totalCredit = lineItems.reduce((sum, item) => sum + (Number(item.credit) || 0), 0);
     return { totalDebit, totalCredit };
   };
 

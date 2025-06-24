@@ -59,7 +59,7 @@ const CreateJournalEntryForm = ({ open, onClose, onSuccess }: CreateJournalEntry
   ) => {
     const newLineItems = [...lineItems];
     if (field === 'debit' || field === 'credit') {
-      const numValue = typeof value === 'string' ? parseFloat(value) || 0 : value;
+      const numValue = typeof value === 'string' ? (parseFloat(value) || 0) : (Number(value) || 0);
       newLineItems[index] = {
         ...newLineItems[index],
         [field]: numValue,
@@ -85,8 +85,8 @@ const CreateJournalEntryForm = ({ open, onClose, onSuccess }: CreateJournalEntry
   };
 
   const calculateTotals = () => {
-    const totalDebit = lineItems.reduce((sum, item) => sum + item.debit, 0);
-    const totalCredit = lineItems.reduce((sum, item) => sum + item.credit, 0);
+    const totalDebit = lineItems.reduce((sum, item) => sum + (Number(item.debit) || 0), 0);
+    const totalCredit = lineItems.reduce((sum, item) => sum + (Number(item.credit) || 0), 0);
     return { totalDebit, totalCredit };
   };
 
