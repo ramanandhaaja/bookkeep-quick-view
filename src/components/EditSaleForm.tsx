@@ -87,7 +87,17 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleItemChange = (
+  const handleItemSelect = (index: number, item: Item) => {
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      description: item.name,
+      unitPrice: item.unit_price,
+    };
+    setItems(newItems);
+  };
+
+  const handleItemChange = async (
     index: number,
     field: keyof SaleItem,
     value: string | number
@@ -98,16 +108,40 @@ const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => 
       [field]: value,
     };
     setItems(newItems);
-  };
 
-  const handleItemSelect = (index: number, item: Item) => {
-    const newItems = [...items];
-    newItems[index] = {
-      ...newItems[index],
-      description: item.name,
-      unitPrice: item.unit_price,
-    };
-    setItems(newItems);
+    // If the description changed and it's a new item, create it in the master items table
+    if (field === 'description' && typeof value === 'string' && value.trim()) {
+      try {
+        // Check if item already exists
+        const { data: existingItems } = await supabase
+          .from('items')
+          .select('*')
+          .eq('name', value.trim())
+          .eq('is_active', true);
+
+        // If item doesn't exist, create it
+        if (!existingItems || existingItems.length === 0) {
+          const newMasterItem = {
+            id: generateId("ITM"),
+            name: value.trim(),
+            unit_price: newItems[index].unitPrice || 0,
+            is_active: true
+          };
+
+          const { error } = await supabase
+            .from('items')
+            .insert([newMasterItem]);
+
+          if (error) {
+            console.error('Error creating new item:', error);
+          } else {
+            console.log('New item created in master items:', newMasterItem);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking/creating item:', error);
+      }
+    }
   };
 
   const calculateSubtotal = (): number => {

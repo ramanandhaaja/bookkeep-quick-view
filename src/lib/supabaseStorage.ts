@@ -160,13 +160,13 @@ export const saveSale = async (sale: Sale): Promise<void> => {
     throw saleError;
   }
 
-  // Save the sale items
+  // Save the sale items with correct column name
   const itemsToInsert = sale.items.map(item => ({
     id: item.id,
     sale_id: sale.id,
     description: item.description,
     quantity: item.quantity,
-    unit_price: item.unitPrice
+    unit_price: item.unitPrice  // Fixed: use unit_price instead of unitPrice
   }));
 
   const { error: itemsError } = await supabase
@@ -211,13 +211,13 @@ export const updateSale = async (sale: Sale): Promise<void> => {
     throw deleteError;
   }
 
-  // Insert updated items
+  // Insert updated items with correct column name
   const itemsToInsert = sale.items.map(item => ({
     id: item.id,
     sale_id: sale.id,
     description: item.description,
     quantity: item.quantity,
-    unitPrice: item.unitPrice
+    unit_price: item.unitPrice  // Fixed: use unit_price instead of unitPrice
   }));
 
   const { error: itemsError } = await supabase
