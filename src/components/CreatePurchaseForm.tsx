@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,7 +71,7 @@ const CreatePurchaseForm = ({ open, onClose, onSuccess }: CreatePurchaseFormProp
   };
 
   const handleRemoveItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index"));
+    setItems(items.filter((_, i) => i !== index));
   };
 
   const handleItemSelect = (index: number, item: Item) => {
