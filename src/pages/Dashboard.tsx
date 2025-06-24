@@ -1,4 +1,3 @@
-
 import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -23,48 +22,138 @@ import {
   Bar,
   Legend
 } from "recharts";
-
-const revenueData = [
-  { name: 'Jan', sales: 4000, expenses: 2400 },
-  { name: 'Feb', sales: 3000, expenses: 1398 },
-  { name: 'Mar', sales: 2000, expenses: 9800 },
-  { name: 'Apr', sales: 2780, expenses: 3908 },
-  { name: 'May', sales: 1890, expenses: 4800 },
-  { name: 'Jun', sales: 2390, expenses: 3800 },
-];
-
-const cashflowData = [
-  { name: 'Week 1', inflow: 4000, outflow: 2400 },
-  { name: 'Week 2', inflow: 3000, outflow: 1398 },
-  { name: 'Week 3', inflow: 2000, outflow: 9800 },
-  { name: 'Week 4', inflow: 2780, outflow: 3908 },
-];
+import { useQuery } from "@tanstack/react-query";
+import { getSales, getPurchases, formatCurrency } from "@/lib/supabaseStorage";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 
 const Dashboard = () => {
+  const { data: sales = [], isLoading: salesLoading } = useQuery({
+    queryKey: ['sales'],
+    queryFn: getSales,
+  });
+
+  const { data: purchases = [], isLoading: purchasesLoading } = useQuery({
+    queryKey: ['purchases'],
+    queryFn: getPurchases,
+  });
+
+  // Calculate stats from real data
+  const totalRevenue = sales.reduce((sum, sale) => sum + Number(sale.amount), 0);
+  const totalExpenses = purchases.reduce((sum, purchase) => sum + Number(purchase.amount), 0);
+  const totalSales = sales.length;
+  const outstandingAmount = sales
+    .filter(sale => sale.status === 'Pending' || sale.status === 'Overdue')
+    .reduce((sum, sale) => sum + Number(sale.amount), 0);
+
+  // Generate monthly revenue data for chart
+  const getMonthlyData = () => {
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = subMonths(new Date(), i);
+      const monthStart = startOfMonth(date);
+      const monthEnd = endOfMonth(date);
+      
+      const monthSales = sales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        return saleDate >= monthStart && saleDate <= monthEnd;
+      });
+      
+      const monthPurchases = purchases.filter(purchase => {
+        const purchaseDate = new Date(purchase.date);
+        return purchaseDate >= monthStart && purchaseDate <= monthEnd;
+      });
+      
+      const salesTotal = monthSales.reduce((sum, sale) => sum + Number(sale.amount), 0);
+      const expensesTotal = monthPurchases.reduce((sum, purchase) => sum + Number(purchase.amount), 0);
+      
+      months.push({
+        name: format(date, 'MMM'),
+        sales: salesTotal,
+        expenses: expensesTotal
+      });
+    }
+    return months;
+  };
+
+  // Generate weekly cashflow data
+  const getWeeklyCashFlow = () => {
+    const weeks = [];
+    const today = new Date();
+    
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - (i * 7) - 6);
+      const weekEnd = new Date(today);
+      weekEnd.setDate(today.getDate() - (i * 7));
+      
+      const weekSales = sales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        return saleDate >= weekStart && saleDate <= weekEnd && sale.status === 'Paid';
+      });
+      
+      const weekPurchases = purchases.filter(purchase => {
+        const purchaseDate = new Date(purchase.date);
+        return purchaseDate >= weekStart && purchaseDate <= weekEnd;
+      });
+      
+      const inflow = weekSales.reduce((sum, sale) => sum + Number(sale.amount), 0);
+      const outflow = weekPurchases.reduce((sum, purchase) => sum + Number(purchase.amount), 0);
+      
+      weeks.push({
+        name: `Week ${4 - i}`,
+        inflow,
+        outflow
+      });
+    }
+    return weeks;
+  };
+
+  const revenueData = getMonthlyData();
+  const cashflowData = getWeeklyCashFlow();
+
+  // Get recent transactions
+  const recentSales = sales
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 4);
+
+  const recentPurchases = purchases
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 4);
+
+  if (salesLoading || purchasesLoading) {
+    return (
+      <Layout title="Dashboard" subtitle="Overview of your financial data">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading dashboard data...</div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout title="Dashboard" subtitle="Overview of your financial data">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <StatCard 
           title="Revenue" 
-          value="$24,780" 
+          value={formatCurrency(totalRevenue)} 
           trend={7.2} 
           icon={<DollarSign className="h-5 w-5 text-accounting-primary" />}
         />
         <StatCard 
           title="Sales" 
-          value="145" 
+          value={totalSales.toString()} 
           trend={5.3} 
           icon={<ArrowUpRight className="h-5 w-5 text-accounting-success" />}
         />
         <StatCard 
           title="Expenses" 
-          value="$12,450" 
+          value={formatCurrency(totalExpenses)} 
           trend={-2.4} 
           icon={<ArrowDownRight className="h-5 w-5 text-accounting-danger" />}
         />
         <StatCard 
           title="Outstanding" 
-          value="$8,570" 
+          value={formatCurrency(outstandingAmount)} 
           trend={3.1} 
           icon={<FileText className="h-5 w-5 text-accounting-warning" />}
         />
@@ -86,7 +175,7 @@ const Dashboard = () => {
                   <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} width={80} tickFormatter={(value) => `$${value}`} />
-                  <Tooltip />
+                  <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
                   <Line type="monotone" dataKey="sales" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
                   <Line type="monotone" dataKey="expenses" stroke="#EF4444" strokeWidth={2} dot={{ r: 4 }} />
                 </LineChart>
@@ -110,7 +199,7 @@ const Dashboard = () => {
                   <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} width={80} tickFormatter={(value) => `$${value}`} />
-                  <Tooltip />
+                  <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
                   <Legend />
                   <Bar dataKey="inflow" name="Cash In" fill="#10B981" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="outflow" name="Cash Out" fill="#F59E0B" radius={[4, 4, 0, 0]} />
@@ -125,35 +214,36 @@ const Dashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-medium">Recent Invoices</h3>
-              <a href="/invoices" className="text-sm text-primary hover:underline">View All</a>
+              <h3 className="text-lg font-medium">Recent Sales</h3>
+              <a href="/sales" className="text-sm text-primary hover:underline">View All</a>
             </div>
             <div className="space-y-4">
-              {[
-                { client: 'Acme Inc', amount: '$1,200', status: 'Paid', date: '23 May 2025' },
-                { client: 'Globex Corp', amount: '$850', status: 'Pending', date: '21 May 2025' },
-                { client: 'Stark Industries', amount: '$3,700', status: 'Overdue', date: '15 May 2025' },
-                { client: 'Wayne Enterprises', amount: '$2,150', status: 'Pending', date: '12 May 2025' },
-              ].map((invoice, i) => (
-                <div key={i} className="flex items-center justify-between p-4 rounded-lg border">
-                  <div>
-                    <p className="font-medium">{invoice.client}</p>
-                    <p className="text-sm text-muted-foreground">{invoice.date}</p>
+              {recentSales.length > 0 ? (
+                recentSales.map((sale) => (
+                  <div key={sale.id} className="flex items-center justify-between p-4 rounded-lg border">
+                    <div>
+                      <p className="font-medium">{sale.customer}</p>
+                      <p className="text-sm text-muted-foreground">{format(new Date(sale.date), 'dd MMM yyyy')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{formatCurrency(Number(sale.amount))}</p>
+                      <p className={`text-sm ${
+                        sale.status === 'Paid' 
+                          ? 'text-accounting-success' 
+                          : sale.status === 'Overdue' 
+                            ? 'text-accounting-danger' 
+                            : 'text-accounting-warning'
+                      }`}>
+                        {sale.status}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium">{invoice.amount}</p>
-                    <p className={`text-sm ${
-                      invoice.status === 'Paid' 
-                        ? 'text-accounting-success' 
-                        : invoice.status === 'Overdue' 
-                          ? 'text-accounting-danger' 
-                          : 'text-accounting-warning'
-                    }`}>
-                      {invoice.status}
-                    </p>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  No sales data available
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -161,35 +251,36 @@ const Dashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-medium">Recent Purchase Orders</h3>
-              <a href="/purchase-orders" className="text-sm text-primary hover:underline">View All</a>
+              <h3 className="text-lg font-medium">Recent Purchases</h3>
+              <a href="/purchases" className="text-sm text-primary hover:underline">View All</a>
             </div>
             <div className="space-y-4">
-              {[
-                { supplier: 'Office Supplies Co', amount: '$450', status: 'Fulfilled', date: '22 May 2025' },
-                { supplier: 'Tech Hardware Inc', amount: '$1,275', status: 'Pending', date: '20 May 2025' },
-                { supplier: 'Business Services Ltd', amount: '$780', status: 'Cancelled', date: '17 May 2025' },
-                { supplier: 'Furniture Outlet', amount: '$2,850', status: 'Fulfilled', date: '10 May 2025' },
-              ].map((po, i) => (
-                <div key={i} className="flex items-center justify-between p-4 rounded-lg border">
-                  <div>
-                    <p className="font-medium">{po.supplier}</p>
-                    <p className="text-sm text-muted-foreground">{po.date}</p>
+              {recentPurchases.length > 0 ? (
+                recentPurchases.map((purchase) => (
+                  <div key={purchase.id} className="flex items-center justify-between p-4 rounded-lg border">
+                    <div>
+                      <p className="font-medium">{purchase.supplier}</p>
+                      <p className="text-sm text-muted-foreground">{format(new Date(purchase.date), 'dd MMM yyyy')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{formatCurrency(Number(purchase.amount))}</p>
+                      <p className={`text-sm ${
+                        purchase.status === 'Received' 
+                          ? 'text-accounting-success' 
+                          : purchase.status === 'Cancelled' 
+                            ? 'text-accounting-danger' 
+                            : 'text-accounting-warning'
+                      }`}>
+                        {purchase.status}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium">{po.amount}</p>
-                    <p className={`text-sm ${
-                      po.status === 'Fulfilled' 
-                        ? 'text-accounting-success' 
-                        : po.status === 'Cancelled' 
-                          ? 'text-accounting-danger' 
-                          : 'text-accounting-warning'
-                    }`}>
-                      {po.status}
-                    </p>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  No purchase data available
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
