@@ -88,6 +88,63 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
     setItems(newItems);
   };
 
+  const createMasterItemIfNeeded = async (itemDescription: string, unitPrice: number) => {
+    if (!itemDescription.trim()) return;
+
+    try {
+      console.log('Checking for existing item:', itemDescription);
+      
+      // Check if item already exists
+      const { data: existingItems, error: checkError } = await supabase
+        .from('items')
+        .select('*')
+        .eq('name', itemDescription.trim())
+        .eq('is_active', true);
+
+      if (checkError) {
+        console.error('Error checking existing item:', checkError);
+        return;
+      }
+
+      console.log('Existing items found:', existingItems);
+
+      // If item doesn't exist, create it
+      if (!existingItems || existingItems.length === 0) {
+        const newMasterItem = {
+          id: generateId("ITM"),
+          name: itemDescription.trim(),
+          unit_price: unitPrice || 0,
+          is_active: true
+        };
+
+        console.log('Creating new master item:', newMasterItem);
+
+        const { error: insertError } = await supabase
+          .from('items')
+          .insert([newMasterItem]);
+
+        if (insertError) {
+          console.error('Error creating new item:', insertError);
+          toast({
+            title: "Warning",
+            description: `Failed to create master item: ${insertError.message}`,
+            variant: "destructive",
+          });
+        } else {
+          console.log('New item created successfully in master items:', newMasterItem);
+          toast({
+            title: "Info",
+            description: `New item "${itemDescription}" added to master items`,
+          });
+        }
+      } else {
+        console.log('Item already exists in master items');
+      }
+    } catch (error) {
+      console.error('Error in createMasterItemIfNeeded:', error);
+    }
+  };
+
   const handleItemChange = async (
     index: number,
     field: keyof SaleItem,
@@ -100,38 +157,14 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
     };
     setItems(newItems);
 
-    // If the description changed and it's a new item, create it in the master items table
+    // If the description changed, create master item
     if (field === 'description' && typeof value === 'string' && value.trim()) {
-      try {
-        // Check if item already exists
-        const { data: existingItems } = await supabase
-          .from('items')
-          .select('*')
-          .eq('name', value.trim())
-          .eq('is_active', true);
-
-        // If item doesn't exist, create it
-        if (!existingItems || existingItems.length === 0) {
-          const newMasterItem = {
-            id: generateId("ITM"),
-            name: value.trim(),
-            unit_price: newItems[index].unitPrice || 0,
-            is_active: true
-          };
-
-          const { error } = await supabase
-            .from('items')
-            .insert([newMasterItem]);
-
-          if (error) {
-            console.error('Error creating new item:', error);
-          } else {
-            console.log('New item created in master items:', newMasterItem);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking/creating item:', error);
-      }
+      await createMasterItemIfNeeded(value.trim(), newItems[index].unitPrice);
+    }
+    
+    // If unit price changed and we have a description, update master item
+    if (field === 'unitPrice' && newItems[index].description) {
+      await createMasterItemIfNeeded(newItems[index].description, typeof value === 'number' ? value : 0);
     }
   };
 
@@ -171,6 +204,18 @@ const CreateSaleForm = ({ open, onClose, onSuccess }: CreateSaleFormProps) => {
     }
 
     setIsSubmitting(true);
+
+    // Create master items for all items before saving the sale
+    try {
+      console.log('Creating master items for all sale items...');
+      for (const item of items) {
+        if (item.description.trim()) {
+          await createMasterItemIfNeeded(item.description.trim(), item.unitPrice);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating master items:', error);
+    }
 
     const newSale: Sale = {
       id: generateId("INV"),
