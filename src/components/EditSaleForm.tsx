@@ -44,26 +44,33 @@ interface EditSaleFormProps {
 
 const EditSaleForm = ({ open, onClose, onSuccess, sale }: EditSaleFormProps) => {
   const { toast } = useToast();
-  const [customer, setCustomer] = useState(sale.customer);
-  const [category, setCategory] = useState(sale.category || "");
-  const [date, setDate] = useState(sale.date);
-  const [status, setStatus] = useState<Sale["status"]>(sale.status);
-  const [notes, setNotes] = useState(sale.notes || "");
-  const [taxPercentage, setTaxPercentage] = useState<number>(sale.tax?.percentage || 0);
-  const [items, setItems] = useState<SaleItem[]>(sale.items);
+  const [customer, setCustomer] = useState("");
+  const [category, setCategory] = useState("");
+  const [date, setDate] = useState("");
+  const [status, setStatus] = useState<Sale["status"]>("Pending");
+  const [notes, setNotes] = useState("");
+  const [taxPercentage, setTaxPercentage] = useState<number>(0);
+  const [items, setItems] = useState<SaleItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
 
+  // Single useEffect to initialize all form data when sale changes
   useEffect(() => {
-    if (sale) {
-      setCustomer(sale.customer);
+    if (sale && open) {
+      console.log('Initializing EditSaleForm with sale:', sale);
+      setCustomer(sale.customer || "");
       setCategory(sale.category || "");
-      setDate(sale.date);
-      setStatus(sale.status);
+      setDate(sale.date || "");
+      setStatus(sale.status || "Pending");
       setNotes(sale.notes || "");
       setTaxPercentage(sale.tax?.percentage || 0);
-      setItems([...sale.items]);
+      setItems(sale.items ? [...sale.items] : []);
+      console.log('Form initialized with:', {
+        customer: sale.customer,
+        status: sale.status,
+        items: sale.items
+      });
     }
-  }, [sale]);
+  }, [sale, open]);
 
   useEffect(() => {
     const loadCategories = async () => {
