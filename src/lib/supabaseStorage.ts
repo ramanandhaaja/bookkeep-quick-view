@@ -136,7 +136,7 @@ export const getSales = async (): Promise<Sale[]> => {
           quantity: item.quantity,
           unitPrice: item.unit_price
         })),
-        tax: sale.tax_percentage > 0 ? {
+        tax: sale.tax_percentage && sale.tax_percentage > 0 ? {
           percentage: sale.tax_percentage,
           amount: sale.tax_amount
         } : undefined
