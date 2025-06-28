@@ -115,6 +115,7 @@ export const getSales = async (): Promise<Sale[]> => {
   const salesWithItems = await Promise.all(
     (salesData || []).map(async (sale) => {
       console.log(`Fetching items for sale ${sale.id} with status ${sale.status}...`);
+      console.log(`Sale details:`, { id: sale.id, customer: sale.customer, status: sale.status, amount: sale.amount });
       
       const { data: itemsData, error: itemsError } = await supabase
         .from('sale_items')
@@ -126,7 +127,16 @@ export const getSales = async (): Promise<Sale[]> => {
         throw itemsError;
       }
 
-      console.log(`Items found for sale ${sale.id}:`, itemsData);
+      console.log(`Raw items data for sale ${sale.id}:`, itemsData);
+      console.log(`Items count for sale ${sale.id}:`, itemsData?.length || 0);
+
+      // Check if there are actually any sale_items records for this sale_id
+      const { data: itemCheck, error: checkError } = await supabase
+        .from('sale_items')
+        .select('count(*)')
+        .eq('sale_id', sale.id);
+      
+      console.log(`Item count check for sale ${sale.id}:`, itemCheck);
 
       const processedSale = {
         ...sale,
@@ -142,7 +152,7 @@ export const getSales = async (): Promise<Sale[]> => {
         } : undefined
       };
 
-      console.log(`Processed sale ${sale.id}:`, processedSale);
+      console.log(`Processed sale ${sale.id} final items:`, processedSale.items);
       return processedSale;
     })
   );
