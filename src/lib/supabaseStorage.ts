@@ -97,6 +97,8 @@ export interface Item {
 }
 
 export const getSales = async (): Promise<Sale[]> => {
+  console.log('Starting getSales function...');
+  
   const { data: salesData, error: salesError } = await supabase
     .from('sales')
     .select('*')
@@ -107,20 +109,26 @@ export const getSales = async (): Promise<Sale[]> => {
     throw salesError;
   }
 
+  console.log('Fetched sales data:', salesData);
+
   // Fetch items for each sale
   const salesWithItems = await Promise.all(
     (salesData || []).map(async (sale) => {
+      console.log(`Fetching items for sale ${sale.id} with status ${sale.status}...`);
+      
       const { data: itemsData, error: itemsError } = await supabase
         .from('sale_items')
         .select('*')
         .eq('sale_id', sale.id);
 
       if (itemsError) {
-        console.error('Error fetching sale items:', itemsError);
+        console.error(`Error fetching sale items for ${sale.id}:`, itemsError);
         throw itemsError;
       }
 
-      return {
+      console.log(`Items found for sale ${sale.id}:`, itemsData);
+
+      const processedSale = {
         ...sale,
         items: (itemsData || []).map(item => ({
           id: item.id,
@@ -133,9 +141,13 @@ export const getSales = async (): Promise<Sale[]> => {
           amount: sale.tax_amount
         } : undefined
       };
+
+      console.log(`Processed sale ${sale.id}:`, processedSale);
+      return processedSale;
     })
   );
 
+  console.log('Final sales with items:', salesWithItems);
   return salesWithItems;
 };
 
